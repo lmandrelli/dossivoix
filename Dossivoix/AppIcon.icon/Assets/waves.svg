@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Ondes sonores : le dossier « parle » -->
+  <g fill="none" stroke="#FFFFFF" stroke-width="48" stroke-linecap="round">
+    <path d="M703.6 477.7 A100 100 0 0 1 703.6 606.3"/>
+    <path d="M761.1 429.5 A175 175 0 0 1 761.1 654.5"/>
+    <path d="M818.5 381.3 A250 250 0 0 1 818.5 702.7"/>
+  </g>
+</svg>
