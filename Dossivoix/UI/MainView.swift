@@ -14,6 +14,8 @@ import DossivoixCore
 struct MainView: View {
     @Bindable var coordinator: FlowCoordinator
     @Environment(\.palette) private var palette
+    /// Réglages → Dossivoix → « Mode diagnostic » (Settings.bundle), désactivé par défaut.
+    @AppStorage("diagnosticModeEnabled") private var isDiagnosticModeEnabled = false
 
     /// Hauteur réservée au panneau « J'écoute » (toujours réservée, même vide).
     private static let listeningSlotHeight: CGFloat = 112
@@ -51,13 +53,16 @@ struct MainView: View {
             .navigationTitle(AppIdentity.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Accès discret à l'écran Diagnostic.
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink("Diagnostic") {
-                        DiagnosticView(log: coordinator.diagnostics)
+                // Écran Diagnostic : outil de dépannage, visible seulement si le mode diagnostic
+                // est activé dans les Réglages d'iOS.
+                if isDiagnosticModeEnabled {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink("Diagnostic") {
+                            DiagnosticView(log: coordinator.diagnostics)
+                        }
+                        .font(.footnote)
+                        .accessibilityHint("Détail technique des dernières étiquettes lues, à partager.")
                     }
-                    .font(.footnote)
-                    .accessibilityHint("Détail technique des dernières étiquettes lues, à partager.")
                 }
             }
             .sheet(item: $coordinator.textEntryRequest) { request in

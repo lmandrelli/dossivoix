@@ -3,8 +3,9 @@
 <!--
   Manifeste de confidentialité de Dossivoix.
   L'app ne suit pas l'utilisatrice, ne collecte aucune donnée et n'envoie rien sur le réseau.
-  Aucune API « à justification » (UserDefaults, horodatage de fichiers…) n'est utilisée pour l'instant :
-  si cela change, l'ajouter dans NSPrivacyAccessedAPITypes.
+  API « à justification » utilisées :
+  - UserDefaults (CA92.1) : lecture du réglage « Mode diagnostic » (Settings.bundle),
+    propre à l'app et jamais partagé.
 -->
 <plist version="1.0">
 <dict>
@@ -15,6 +16,15 @@
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -40,9 +40,13 @@ selon la politique de confidentialité d'Apple. Siri ne fait qu'ouvrir l'applica
 
 ## Partage volontaire
 
-L'écran « Diagnostic » permet de **partager vous-même** le détail technique d'une étiquette
+L'écran « Diagnostic » (affiché seulement si vous activez Réglages → Dossivoix → Mode diagnostic)
+permet de **partager vous-même** le détail technique d'une étiquette
 (par message ou e-mail, par exemple), avec la feuille de partage d'iOS. Rien n'est envoyé
 sans votre action, et le destinataire est celui que vous choisissez.
+
+Le seul réglage enregistré par l'application est l'état de l'interrupteur « Mode diagnostic »,
+conservé sur l'iPhone.
 
 ## Autorisations demandées
 
