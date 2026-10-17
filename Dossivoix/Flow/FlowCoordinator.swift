@@ -3,32 +3,41 @@ import Observation
 import UIKit
 import DossivoixCore
 
-/// Remplacement en attente de confirmation : l'étiquette contenait déjà autre chose.
-struct PendingReplace: Equatable {
-    /// Nom à écrire.
-    let name: String
-    /// Contenu vu au 1er passage : au 2e passage, on n'écrit que si l'étiquette le contient toujours.
-    let seenContent: [NDEFRecord]
+/// Demande d'ouverture de la saisie au clavier (solution de secours).
+struct TextEntryRequest: Identifiable, Equatable {
+    let id = UUID()
+    let prefill: String?
 }
 
-/// Chef d'orchestre des parcours de l'app.
+/// Chef d'orchestre : exécute les effets décidés par la machine à états (`FlowMachine`)
+/// à l'aide des services (NFC, parole, écoute, signaux), et lui renvoie leurs résultats.
 ///
-/// Étape 4 : lecture et écriture guidées à la voix, saisie du nom au clavier,
-/// confirmation de remplacement à l'écran. La dictée, les réponses vocales et la machine
-/// à états complète viendront ensuite.
+/// Toute la logique du parcours est dans `FlowMachine` (testée) ; ici, uniquement l'exécution :
+/// - les effets s'enchaînent dans l'ordre ; la parole est toujours terminée avant une écoute ;
+/// - un nouvel événement (bouton touché…) coupe la parole et l'écoute en cours,
+///   et rend caduque la suite de l'ancienne chaîne d'effets.
 @MainActor
 @Observable
 final class FlowCoordinator {
     /// Dernier message, affiché en grand à l'écran et prononcé.
     private(set) var statusMessage = Phrases.welcome
-    /// Vrai pendant un parcours : les boutons sont désactivés.
-    private(set) var isBusy = false
-    /// Remplacement à confirmer : l'écran affiche alors « Remplacer » et « Annuler ».
-    private(set) var pendingReplace: PendingReplace?
+    /// État courant du parcours, pour adapter l'écran.
+    private(set) var state: FlowState = .idle
+    /// Vrai pendant une écoute (micro ouvert).
+    private(set) var isListening = false
+    /// Saisie au clavier à ouvrir (modifiable par l'écran).
+    var textEntryRequest: TextEntryRequest?
 
     let diagnostics: DiagnosticLog
+    private var machine = FlowMachine()
+    /// Numéro de la chaîne d'effets en cours : une chaîne plus ancienne s'arrête d'elle-même.
+    private var generation = 0
+    /// Dernier résultat annoncé, réaffiché au retour au repos.
+    private var lastResultMessage: String?
+
     private let tags: TagReading & TagWriting
     private let speech: SpeechOutput
+    private let speechInput: SpeechInput
     private let feedback: FeedbackPlaying
     private let audioSession: AudioSessionControlling
     private let isVoiceOverRunning: @MainActor () -> Bool
@@ -36,6 +45,7 @@ final class FlowCoordinator {
     init(
         tags: TagReading & TagWriting,
         speech: SpeechOutput,
+        speechInput: SpeechInput,
         feedback: FeedbackPlaying,
         audioSession: AudioSessionControlling,
         isVoiceOverRunning: @escaping @MainActor () -> Bool = { false },
@@ -43,31 +53,26 @@ final class FlowCoordinator {
     ) {
         self.tags = tags
         self.speech = speech
+        self.speechInput = speechInput
         self.feedback = feedback
         self.audioSession = audioSession
         self.isVoiceOverRunning = isVoiceOverRunning
         self.diagnostics = diagnostics ?? DiagnosticLog()
     }
 
-    /// Coordinateur réel : CoreNFC, synthèse vocale, sons et vibrations.
+    /// Coordinateur réel : CoreNFC, synthèse vocale, reconnaissance vocale, sons et vibrations.
+    ///
+    /// En Debug, pour essayer les parcours dans le simulateur :
+    /// - `-FakeNFC` simule les étiquettes (une étiquette SmartVision, puis remplacement accepté) ;
+    /// - `-FakeVoice` simule les réponses vocales (« banque », « oui », « oui », puis silence).
     static func live() -> FlowCoordinator {
-        FlowCoordinator(
-            tags: makeTagService(),
-            speech: AdaptiveSpeechOutput.live(),
-            feedback: SoundAndHapticFeedback(),
-            audioSession: AudioSessionManager(),
-            isVoiceOverRunning: { UIAccessibility.isVoiceOverRunning }
-        )
-    }
-
-    /// Service NFC réel ; en Debug, l'argument de lancement `-FakeNFC` le remplace par
-    /// une simulation (lecture d'une étiquette SmartVision, puis remplacement confirmé),
-    /// pour essayer les écrans dans le simulateur.
-    private static func makeTagService() -> TagReading & TagWriting {
+        let arguments = ProcessInfo.processInfo.arguments
+        var tags: TagReading & TagWriting = CoreNFCTagService()
+        var speechInput: SpeechInput = SpeechRecognitionInput()
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-FakeNFC") {
+        if arguments.contains("-FakeNFC") {
             let existing = SmartVisionFormat.standard.records(forFolderName: "Dossier panneau solaire")
-            return FakeTagService(
+            tags = FakeTagService(
                 readResult: .success(existing),
                 writeResults: [
                     .success(.needsReplaceConfirmation(current: existing)),
@@ -75,108 +80,123 @@ final class FlowCoordinator {
                 ]
             )
         }
+        if arguments.contains("-FakeVoice") {
+            speechInput = ScriptedSpeechInput(answers: [.text("banque"), .text("oui"), .text("oui")])
+        }
         #endif
-        return CoreNFCTagService()
+        return FlowCoordinator(
+            tags: tags,
+            speech: AdaptiveSpeechOutput.live(),
+            speechInput: speechInput,
+            feedback: SoundAndHapticFeedback(),
+            audioSession: AudioSessionManager(),
+            isVoiceOverRunning: { UIAccessibility.isVoiceOverRunning }
+        )
     }
 
-    // MARK: - Lecture
+    // MARK: - Actions (écran, Siri)
 
-    func startReading() async {
-        await runFlow {
-            let result = await self.withApproachPrompt(Phrases.approachTag) {
-                await self.tags.readTag()
-            }
-            switch result {
-            case .success(let records):
-                let decoded = TagDecoder.decode(records)
-                self.diagnostics.add(decoded)
-                await self.announce(Phrases.readResult(decoded), cue: decoded.folderName == nil ? .error : .success)
-            case .failure(let error):
-                await self.announce(error, during: .reading)
-            }
+    func startReading() { send(.startReading) }
+    func startWriting() { send(.startWriting) }
+    func typedName(_ name: String) { send(.typedName(name)) }
+    func answer(_ answer: VoiceAnswer) { send(.screenAnswer(answer)) }
+    func cancel() { send(.cancel) }
+
+    /// Ouvre la saisie au clavier : la parole et l'écoute en cours s'arrêtent,
+    /// mais le parcours garde son état (le nom saisi remplacera la dictée).
+    func openKeyboardEntry(prefill: String? = nil) {
+        interruptChain()
+        textEntryRequest = TextEntryRequest(prefill: prefill)
+    }
+
+    /// Tout arrêter sans rien dire (app passée en arrière-plan).
+    func stopAll() {
+        interruptChain()
+        machine.reset()
+        state = machine.state
+        audioSession.deactivate()
+    }
+
+    // MARK: - Boucle événement → effets
+
+    private func send(_ event: FlowEvent) {
+        interruptChain()
+        let effects = machine.handle(event)
+        state = machine.state
+        guard !effects.isEmpty else {
+            if state == .idle { returnToRest() }
+            return
+        }
+        let current = generation
+        Task {
+            await audioSession.activate()
+            await run(effects, generation: current)
         }
     }
 
-    // MARK: - Écriture
-
-    /// 1er passage : vérifie le nom, puis écrit directement si l'étiquette est vide ;
-    /// sinon demande confirmation avant de remplacer.
-    func startWriting(folderName: String) async {
-        let name = FolderName.preparedForWriting(folderName)
-        guard !name.isEmpty else { return }
-        pendingReplace = nil
-
-        await runFlow {
-            // Vérification de la taille avant même d'approcher l'étiquette (NTAG 213).
-            let check = CapacityCheck(folderName: name)
-            guard check.fits else {
-                await self.announce(Phrases.nameTooLong(check), cue: .error)
-                return
-            }
-            await self.write(name: name, expectedCurrent: nil)
-        }
+    /// Retour au repos : l'écran réaffiche le dernier résultat (nom lu, écrit, erreur…)
+    /// plutôt qu'une question restée sans réponse, et l'audio est rendu aux autres apps.
+    private func returnToRest() {
+        statusMessage = lastResultMessage ?? Phrases.welcome
+        audioSession.deactivate()
     }
 
-    /// 2e passage, après confirmation : n'écrit que si l'étiquette n'a pas changé.
-    func confirmReplace() async {
-        guard let pending = pendingReplace else { return }
-        pendingReplace = nil
-        await runFlow {
-            await self.write(name: pending.name, expectedCurrent: pending.seenContent)
-        }
-    }
-
-    /// Refus du remplacement : l'étiquette reste telle quelle.
-    func cancelReplace() async {
-        guard pendingReplace != nil else { return }
-        pendingReplace = nil
-        await runFlow {
-            await self.announce(Phrases.writeCanceledTagUnchanged, cue: nil)
-        }
-    }
-
-    private func write(name: String, expectedCurrent: [NDEFRecord]?) async {
-        let records = SmartVisionFormat.standard.records(forFolderName: name)
-        let isSecondPass = expectedCurrent != nil
-        let result = await withApproachPrompt(isSecondPass ? Phrases.approachTagAgain : Phrases.approachTag) {
-            await self.tags.writeTag(records: records, expectedCurrent: expectedCurrent, isSecondPass: isSecondPass)
-        }
-
-        switch result {
-        case .success(.written):
-            await announce(Phrases.written(name), cue: .success)
-        case .success(.alreadyUpToDate):
-            await announce(Phrases.alreadyWritten(name), cue: .success)
-        case .success(.needsReplaceConfirmation(let current)):
-            let existing = TagDecoder.decode(current)
-            diagnostics.add(existing)
-            pendingReplace = PendingReplace(name: name, seenContent: current)
-            await announce(Phrases.askReplace(existing: existing, newName: name), cue: nil)
-        case .failure(.userCanceled):
-            await announce(Phrases.writeCanceledTagUnchanged, cue: nil)
-        case .failure(let error):
-            await announce(error, during: .writing)
-        }
-    }
-
-    // MARK: - Arrêt
-
-    /// Coupe la parole (app mise en arrière-plan, par exemple).
-    func stopSpeaking() {
+    /// Coupe la parole et l'écoute en cours ; la chaîne d'effets en cours s'arrêtera.
+    private func interruptChain() {
+        generation += 1
+        speechInput.cancel()
         speech.stop()
     }
 
-    // MARK: - Outils
+    private func run(_ effects: [FlowEffect], generation current: Int) async {
+        for effect in effects {
+            guard current == generation else { return }
+            switch effect {
+            case .say(let text, let cue):
+                await announce(text, cue: cue)
 
-    /// Encadre un parcours : un seul à la fois, session audio active pendant sa durée.
-    private func runFlow(_ body: () async -> Void) async {
-        guard !isBusy else { return }
-        isBusy = true
-        audioSession.activate()
-        await body()
-        audioSession.deactivate()
-        isBusy = false
+            case .recordDiagnostic(let records):
+                diagnostics.add(TagDecoder.decode(records))
+
+            case .showTextEntry(let prefill):
+                textEntryRequest = TextEntryRequest(prefill: prefill)
+
+            case .listen(let kind):
+                await feedback.play(.listening)
+                guard current == generation else { return }
+                isListening = true
+                let result = await speechInput.listen(kind)
+                isListening = false
+                guard current == generation else { return }
+                send(.heard(result))
+                return
+
+            case .readTag:
+                let result = await withApproachPrompt(Phrases.approachTag) {
+                    await self.tags.readTag()
+                }
+                guard current == generation else { return }
+                send(.readFinished(result))
+                return
+
+            case .writeTag(let records, let expectedCurrent, let isSecondPass):
+                let prompt = isSecondPass ? Phrases.approachTagAgain : Phrases.approachTag
+                let result = await withApproachPrompt(prompt) {
+                    await self.tags.writeTag(records: records, expectedCurrent: expectedCurrent,
+                                             isSecondPass: isSecondPass)
+                }
+                guard current == generation else { return }
+                send(.writeFinished(result))
+                return
+            }
+        }
+        // Fin de parcours : on rend l'audio aux autres apps.
+        if current == generation && state == .idle {
+            audioSession.deactivate()
+        }
     }
+
+    // MARK: - Outils
 
     /// Prononce la consigne pendant que la feuille NFC s'ouvre, puis la coupe dès que
     /// l'étiquette est traitée (ou que le NFC est indisponible).
@@ -197,16 +217,15 @@ final class FlowCoordinator {
     }
 
     /// Affiche le message, joue le signal éventuel, puis prononce le message.
+    /// Un message accompagné d'un signal est un résultat : il est gardé pour le retour au repos.
     private func announce(_ text: String, cue: FeedbackCue?) async {
         statusMessage = text
+        if cue != nil {
+            lastResultMessage = text
+        }
         if let cue {
             await feedback.play(cue)
         }
         await speech.speak(text)
-    }
-
-    /// Annonce une erreur NFC ; une annulation volontaire n'a pas de signal d'erreur.
-    private func announce(_ error: TagError, during operation: Phrases.Operation) async {
-        await announce(Phrases.message(for: error, during: operation), cue: error == .userCanceled ? nil : .error)
     }
 }

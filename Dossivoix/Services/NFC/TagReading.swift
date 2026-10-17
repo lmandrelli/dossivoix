@@ -9,17 +9,6 @@ protocol TagReading: AnyObject {
     func readTag() async -> Result<[NDEFRecord], TagError>
 }
 
-/// Résultat d'une tentative d'écriture.
-enum TagWriteOutcome: Equatable {
-    /// Écrit et vérifié par relecture. `previous` : contenu remplacé.
-    case written(previous: [NDEFRecord])
-    /// L'étiquette contenait déjà exactement ce contenu.
-    case alreadyUpToDate
-    /// L'étiquette contient autre chose : rien n'a été écrit, il faut une confirmation
-    /// puis un 2e passage avec `expectedCurrent` = `current`.
-    case needsReplaceConfirmation(current: [NDEFRecord])
-}
-
 /// Écriture d'une étiquette NFC. Ne verrouille jamais l'étiquette.
 @MainActor
 protocol TagWriting: AnyObject {

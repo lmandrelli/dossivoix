@@ -29,6 +29,34 @@ public enum Phrases {
         }
     }
 
+    // MARK: - Questions et réponses vocales
+
+    public static let offerAfterRead =
+        "Dites « encore » pour lire une autre étiquette, ou « écrire » pour écrire une étiquette."
+    public static let askName = "Dites le nom du dossier."
+    public static let askNameAgain = "D'accord. Dites le nom du dossier."
+    public static let askShorterName = "Dites un nom plus court."
+    public static let didNotHearName = "Je n'ai rien entendu. Dites le nom du dossier."
+    public static let didNotUnderstandYesNo = "Je n'ai pas compris. Dites oui, non, ou annuler."
+    public static let didNotUnderstandReplace = "Je n'ai pas compris. Dites oui pour remplacer, ou non pour garder l'étiquette."
+    public static let useScreen = "Je n'ai pas compris. Vous pouvez utiliser l'écran."
+    public static let useScreenButtons = "Je n'ai pas compris. Utilisez les boutons Remplacer ou Annuler à l'écran."
+    public static let voiceUnavailable = "La reconnaissance vocale n'est pas disponible. Vous pouvez utiliser l'écran."
+    public static let offerAnotherWrite = "Dites « oui » pour écrire une autre étiquette."
+    public static let offerRetry = "Dites « encore » pour réessayer."
+    public static let writeCanceled = "Écriture annulée."
+    public static let stopped = "Annulé."
+
+    /// Demande du nouveau nom, après la lecture d'une étiquette.
+    public static func askNewName(for oldName: String) -> String {
+        "Dites le nouveau nom pour : \(oldName)."
+    }
+
+    /// Confirmation du nom dicté.
+    public static func confirmName(_ name: String) -> String {
+        "J'ai compris : \(name). C'est bon ?"
+    }
+
     // MARK: - Écriture
 
     public static let approachTagAgain = "Approchez à nouveau l'étiquette."
