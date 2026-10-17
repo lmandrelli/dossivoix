@@ -7,10 +7,12 @@ import DossivoixCore
 protocol FeedbackPlaying: AnyObject {
     /// Joue le signal et ne rend la main qu'une fois le son terminé.
     func play(_ cue: FeedbackCue) async
+    func stop()
 }
 
 /// Signaux simulés : rien n'est joué.
 final class SilentFeedback: FeedbackPlaying {
+    func stop() {}
     private(set) var playedCues: [FeedbackCue] = []
 
     func play(_ cue: FeedbackCue) async {
@@ -26,6 +28,8 @@ final class SoundAndHapticFeedback: FeedbackPlaying {
     private let player = AVAudioPlayerNode()
     private let format: AVAudioFormat
     private var buffers: [FeedbackCue: AVAudioPCMBuffer] = [:]
+    private var playbackID: UUID?
+    private var continuation: CheckedContinuation<Void, Never>?
 
     init() {
         format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
@@ -34,6 +38,7 @@ final class SoundAndHapticFeedback: FeedbackPlaying {
     }
 
     func play(_ cue: FeedbackCue) async {
+        stop()
         playHaptic(for: cue)
         guard let buffer = buffer(for: cue) else { return }
 
@@ -43,16 +48,29 @@ final class SoundAndHapticFeedback: FeedbackPlaying {
             Log.audio.error("Démarrage du moteur audio impossible : \(error.localizedDescription)")
             return
         }
+        let id = UUID()
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            player.scheduleBuffer(buffer, at: nil, options: [], completionCallbackType: .dataPlayedBack) { _ in
-                continuation.resume()
+            self.playbackID = id
+            self.continuation = continuation
+            player.scheduleBuffer(buffer, at: nil, options: [], completionCallbackType: .dataPlayedBack) { [weak self] _ in
+                Task { @MainActor [weak self] in self?.finish(id) }
             }
             player.play()
         }
-        // Moteur arrêté entre deux signaux : il ne doit pas occuper l'audio pendant l'écoute
-        // ni empêcher la désactivation de la session audio.
+    }
+
+    func stop() {
+        if let playbackID { finish(playbackID) }
+    }
+
+    private func finish(_ id: UUID) {
+        guard playbackID == id else { return }
+        playbackID = nil
+        let waiting = continuation
+        continuation = nil
         player.stop()
         engine.stop()
+        waiting?.resume()
     }
 
     private func playHaptic(for cue: FeedbackCue) {

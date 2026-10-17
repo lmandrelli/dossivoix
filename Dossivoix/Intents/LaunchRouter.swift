@@ -1,7 +1,7 @@
 import Observation
 
 /// Parcours demandé au lancement (par Siri, Raccourcis ou Spotlight).
-enum LaunchAction: Equatable {
+enum LaunchAction: Hashable {
     case read
     case write
 }

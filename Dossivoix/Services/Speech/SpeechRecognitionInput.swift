@@ -2,129 +2,99 @@ import AVFoundation
 import Speech
 import DossivoixCore
 
-/// Reconnaissance vocale en français (SFSpeechRecognizer), sur l'iPhone quand c'est possible.
-///
-/// - La fin de la réponse est détectée automatiquement : après un court silence suivant
-///   la dernière parole (`ListenTiming.silenceTimeout`).
-/// - Sans parole dans le délai initial, l'écoute s'arrête (`.silence`).
-/// - Rien n'est enregistré : l'audio n'est utilisé que pendant l'écoute.
+/// Une session système, séparée des délais et autorisations pour tester les interruptions.
+@MainActor
+protocol SpeechRecognitionSession: AnyObject {
+    var isAvailable: Bool { get }
+    func start(_ kind: ListenKind, receive: @escaping @MainActor (String?, Bool, Bool) -> Void) throws
+    func stop()
+}
+
+/// Écoutes courtes en français. Chaque écoute possède une génération : ni les autorisations,
+/// ni les callbacks, ni les timers d'une ancienne écoute ne peuvent agir sur la suivante.
 @MainActor
 final class SpeechRecognitionInput: SpeechInput {
-    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "fr-FR"))
-    private let engine = AVAudioEngine()
-
-    private var request: SFSpeechAudioBufferRecognitionRequest?
-    private var task: SFSpeechRecognitionTask?
+    private let session: SpeechRecognitionSession
+    private let authorizeSpeech: @MainActor () async -> Bool
+    private let authorizeMicrophone: @MainActor () async -> Bool
+    private var generation = 0
     private var continuation: CheckedContinuation<ListenResult, Never>?
-    /// Meilleur texte reconnu jusqu'ici.
     private var latestText = ""
     private var silenceTimeout: Double = 1
     private var silenceTimer: Task<Void, Never>?
     private var deadlineTimer: Task<Void, Never>?
 
-    /// Mots attendus dans les réponses courtes : aident la reconnaissance.
-    private static let answerHints = ["oui", "non", "recommencer", "annuler", "encore", "écrire", "remplacer"]
+    init(
+        session: SpeechRecognitionSession? = nil,
+        authorizeSpeech: @escaping @MainActor () async -> Bool = {
+            await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0 == .authorized) }
+            }
+        },
+        authorizeMicrophone: @escaping @MainActor () async -> Bool = {
+            await AVAudioApplication.requestRecordPermission()
+        }
+    ) {
+        self.session = session ?? AppleSpeechRecognitionSession()
+        self.authorizeSpeech = authorizeSpeech
+        self.authorizeMicrophone = authorizeMicrophone
+    }
 
     func listen(_ kind: ListenKind) async -> ListenResult {
         cancel()
-        guard await Self.isAuthorized(), let recognizer, recognizer.isAvailable else {
-            return .unavailable
-        }
-        return await withCheckedContinuation { continuation in
-            self.continuation = continuation
-            do {
-                try start(kind, with: recognizer)
-            } catch {
-                Log.speech.error("Écoute impossible : \(error.localizedDescription)")
-                finish(.unavailable)
+        let current = generation
+        return await withTaskCancellationHandler {
+            guard !Task.isCancelled else { return .silence }
+            let speechAllowed = await authorizeSpeech()
+            guard current == generation, !Task.isCancelled else { return .silence }
+            guard speechAllowed else { return .unavailable }
+            let microphoneAllowed = await authorizeMicrophone()
+            guard current == generation, !Task.isCancelled else { return .silence }
+            guard microphoneAllowed, session.isAvailable else { return .unavailable }
+
+            return await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                latestText = ""
+                let timing = kind.timing
+                silenceTimeout = timing.silenceTimeout
+                do {
+                    try session.start(kind) { [weak self] text, isFinal, failed in
+                        self?.received(text: text, isFinal: isFinal, failed: failed, generation: current)
+                    }
+                    guard current == generation else { return }
+                    silenceTimer = timer(after: timing.initialTimeout, generation: current)
+                    deadlineTimer = timer(after: timing.maxDuration, generation: current)
+                } catch {
+                    guard current == generation else { return }
+                    Log.speech.error("Écoute impossible : \(error.localizedDescription)")
+                    finish(.unavailable)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self, self.generation == current else { return }
+                self.cancel()
             }
         }
     }
 
-    func cancel() {
-        finish(.silence)
-    }
+    func cancel() { finish(.silence) }
 
-    // MARK: - Autorisations
-
-    /// Demande (la première fois) l'autorisation de reconnaissance vocale puis celle du micro.
-    private static func isAuthorized() async -> Bool {
-        let speechStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
-        guard speechStatus == .authorized else { return false }
-        return await AVAudioApplication.requestRecordPermission()
-    }
-
-    // MARK: - Écoute
-
-    private struct NoMicrophone: Error {}
-
-    private func start(_ kind: ListenKind, with recognizer: SFSpeechRecognizer) throws {
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        request.addsPunctuation = false
-        if recognizer.supportsOnDeviceRecognition {
-            request.requiresOnDeviceRecognition = true
-        }
-        switch kind {
-        case .name:
-            request.taskHint = .dictation
-        case .answer:
-            request.taskHint = .confirmation
-            request.contextualStrings = Self.answerHints
-        }
-
-        let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { throw NoMicrophone() }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-            request.append(buffer)
-        }
-        engine.prepare()
-        try engine.start()
-
-        self.request = request
-        latestText = ""
-        task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            let text = result?.bestTranscription.formattedString
-            let isFinal = result?.isFinal ?? false
-            let failed = error != nil
-            Task { @MainActor in
-                self?.received(text: text, isFinal: isFinal, failed: failed)
-            }
-        }
-
-        let timing = kind.timing
-        silenceTimeout = timing.silenceTimeout
-        // Personne ne parle : on arrête après le délai initial.
-        silenceTimer = timer(after: timing.initialTimeout)
-        // Durée maximale, même si la personne parle encore.
-        deadlineTimer = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(timing.maxDuration))
-            guard !Task.isCancelled else { return }
-            self?.finishWithLatestText()
-        }
-    }
-
-    private func received(text: String?, isFinal: Bool, failed: Bool) {
-        guard continuation != nil else { return }
+    private func received(text: String?, isFinal: Bool, failed: Bool, generation current: Int) {
+        guard current == generation, continuation != nil else { return }
         if let text, !text.isEmpty, text != latestText {
             latestText = text
-            // Nouvelle parole : le compte à rebours de silence repart de zéro.
             silenceTimer?.cancel()
-            silenceTimer = timer(after: silenceTimeout)
+            silenceTimer = timer(after: silenceTimeout, generation: current)
         }
-        if isFinal || failed {
-            finishWithLatestText()
-        }
+        if isFinal || failed { finishWithLatestText() }
     }
 
-    private func timer(after seconds: Double) -> Task<Void, Never> {
+    private func timer(after seconds: Double, generation current: Int) -> Task<Void, Never> {
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(seconds))
-            guard !Task.isCancelled else { return }
-            self?.finishWithLatestText()
+            do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
+            guard let self, current == self.generation, !Task.isCancelled else { return }
+            self.finishWithLatestText()
         }
     }
 
@@ -132,23 +102,74 @@ final class SpeechRecognitionInput: SpeechInput {
         finish(latestText.isEmpty ? .silence : .text(latestText))
     }
 
-    /// Arrête le micro et rend le résultat, une seule fois.
     private func finish(_ result: ListenResult) {
+        // Invalider les callbacks avant de demander l'annulation au framework.
+        generation += 1
+        let waiting = continuation
+        continuation = nil
         silenceTimer?.cancel()
         deadlineTimer?.cancel()
         silenceTimer = nil
         deadlineTimer = nil
-        if engine.isRunning {
-            engine.stop()
+        session.stop()
+        latestText = ""
+        waiting?.resume(returning: result)
+    }
+}
+
+/// Accès aux frameworks Apple. L'audio n'est pas enregistré par Dossivoix ; le service
+/// peut traiter l'audio chez Apple si la reconnaissance sur l'appareil n'est pas disponible.
+@MainActor
+private final class AppleSpeechRecognitionSession: SpeechRecognitionSession {
+    private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "fr-FR"))
+    private let engine = AVAudioEngine()
+    private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var task: SFSpeechRecognitionTask?
+    private var hasInputTap = false
+    private struct Unavailable: Error {}
+
+    var isAvailable: Bool { recognizer?.isAvailable == true }
+
+    func start(_ kind: ListenKind, receive: @escaping @MainActor (String?, Bool, Bool) -> Void) throws {
+        guard let recognizer else { throw Unavailable() }
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        self.request = request
+        request.shouldReportPartialResults = true
+        request.addsPunctuation = false
+        if recognizer.supportsOnDeviceRecognition { request.requiresOnDeviceRecognition = true }
+        switch kind {
+        case .name:
+            request.taskHint = .dictation
+        case .answer:
+            request.taskHint = .confirmation
+            request.contextualStrings = ["oui", "non", "recommencer", "annuler", "encore", "écrire", "remplacer"]
         }
-        engine.inputNode.removeTap(onBus: 0)
+
+        let input = engine.inputNode
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else { throw Unavailable() }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in request.append(buffer) }
+        hasInputTap = true
+        engine.prepare()
+        try engine.start()
+        task = recognizer.recognitionTask(with: request) { result, error in
+            let text = result?.bestTranscription.formattedString
+            let isFinal = result?.isFinal ?? false
+            let failed = error != nil
+            Task { @MainActor in receive(text, isFinal, failed) }
+        }
+    }
+
+    func stop() {
+        if engine.isRunning { engine.stop() }
+        // Ne pas initialiser l'entrée audio avant que l'utilisateur autorise le micro.
+        if hasInputTap {
+            engine.inputNode.removeTap(onBus: 0)
+            hasInputTap = false
+        }
         request?.endAudio()
         task?.cancel()
         request = nil
         task = nil
-
-        guard let continuation else { return }
-        self.continuation = nil
-        continuation.resume(returning: result)
     }
 }

@@ -17,16 +17,28 @@ struct DossivoixApp: App {
                 // Noir sur blanc en thème clair (blanc sur noir avec l'inversion intelligente),
                 // blanc sur noir en thème foncé. Voir Palette.
                 .adaptivePalette()
-                .onChange(of: launchRouter.pending) {
-                    startPendingAction()
+                .task(id: scenePhase == .active ? launchRouter.pending : nil) {
+                    // SwiftUI annule cette tâche si l'app quitte le premier plan
+                    // ou si une autre action remplace la demande de Siri.
+                    guard scenePhase == .active, launchRouter.pending != nil else { return }
+                    do {
+                        try await Task.sleep(for: Self.siriHandOffDelay)
+                    } catch {
+                        return
+                    }
+                    guard !Task.isCancelled, scenePhase == .active,
+                          let action = launchRouter.take() else { return }
+                    switch action {
+                    case .read: coordinator.startReading()
+                    case .write: coordinator.startWriting()
+                    }
                 }
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active:
-                startPendingAction()
             case .background:
                 // L'app ne parle ni n'écoute quand elle n'est plus à l'écran.
+                _ = launchRouter.take()
                 coordinator.stopAll()
             default:
                 break
@@ -34,16 +46,4 @@ struct DossivoixApp: App {
         }
     }
 
-    /// Démarre le parcours demandé par un App Intent, dès que l'app est au premier plan
-    /// (le NFC n'est possible qu'à ce moment-là). Aucune action à l'écran n'est nécessaire.
-    private func startPendingAction() {
-        guard scenePhase == .active, let action = launchRouter.take() else { return }
-        Task {
-            try? await Task.sleep(for: Self.siriHandOffDelay)
-            switch action {
-            case .read: coordinator.startReading()
-            case .write: coordinator.startWriting()
-            }
-        }
-    }
 }

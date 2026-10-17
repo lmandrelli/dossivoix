@@ -53,6 +53,13 @@ struct MainView: View {
             .navigationTitle(AppIdentity.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink("À propos") {
+                        AboutView()
+                            .onAppear { coordinator.stopAll() }
+                    }
+                    .accessibilityHint("Confidentialité, assistance et contact du développeur.")
+                }
                 // Écran Diagnostic : outil de dépannage, visible seulement si le mode diagnostic
                 // est activé dans les Réglages d'iOS.
                 if isDiagnosticModeEnabled {

@@ -10,9 +10,9 @@
 	<key>NFCReaderUsageDescription</key>
 	<string>Dossivoix lit et écrit les étiquettes NFC collées sur vos dossiers pour vous en annoncer le nom.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Dossivoix utilise le micro uniquement pendant les courtes questions, pour entendre le nom d'un dossier ou votre réponse (oui, non, recommencer). Rien n'est enregistré.</string>
+	<string>Dossivoix utilise le micro pendant de courtes écoutes pour entendre le nom d'un dossier ou votre réponse. Dossivoix ne conserve pas d'enregistrement audio.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Dossivoix transforme votre voix en texte pour comprendre le nom du dossier et vos réponses. La reconnaissance se fait sur l'iPhone lorsque c'est possible ; rien n'est conservé.</string>
+	<string>Dossivoix transforme votre voix en texte pour comprendre le nom du dossier et vos réponses. La reconnaissance se fait sur l'iPhone quand il le permet ; sinon, l'audio est transmis à Apple pour ce traitement. Dossivoix ne conserve pas d'enregistrement audio.</string>
 
 	<!-- Variantes de prononciation du nom de l'app pour Siri (vide au départ).
 	     Exemple d'entrée à ajouter si Siri comprend mal « Dossivoix » :

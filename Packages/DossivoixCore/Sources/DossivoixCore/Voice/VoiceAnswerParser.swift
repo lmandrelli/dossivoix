@@ -51,17 +51,37 @@ public enum VoiceAnswerParser {
 
     /// Réponse comprise, ou nil si rien de clair n'a été dit.
     public static func parse(_ text: String) -> VoiceAnswer? {
-        var remaining = " " + TextNormalizer.normalize(text) + " "
+        let normalized = TextNormalizer.normalize(text)
+        // Une négation peut inverser n'importe quel verbe (« ne remplace pas »,
+        // « je ne confirme pas »). On redemande plutôt que de déduire un consentement.
+        let negations: Set<String> = ["ne", "n", "pas", "jamais", "plus", "aucun", "aucune", "sans"]
+        if normalized.split(separator: " ").contains(where: { negations.contains(String($0)) }) {
+            // Ces refus complets sont sans ambiguïté ; les autres phrases sont à reformuler.
+            let explicitRefusals = vocabulary.first { $0.answer == .no }?.phrases ?? []
+            return explicitRefusals.contains(normalized) ? .no : nil
+        }
+        var remaining = " " + normalized + " "
         var found: [VoiceAnswer] = []
 
         for (answer, phrases) in vocabulary {
             for phrase in phrases where remaining.contains(" \(phrase) ") {
                 // L'expression est retirée pour ne pas être recomptée par une plus courte.
-                remaining = remaining.replacingOccurrences(of: " \(phrase) ", with: " | ")
+                while remaining.contains(" \(phrase) ") {
+                    remaining = remaining.replacingOccurrences(of: " \(phrase) ", with: " | ")
+                }
                 if !found.contains(answer) { found.append(answer) }
             }
         }
-        if found.count == 1 { return found[0] }
+        if found.count == 1 {
+            // Un mot positif noyé dans une phrase inconnue n'est pas une confirmation.
+            // Les formules de politesse sont les seuls mots supplémentaires acceptés.
+            if found[0] == .yes {
+                let extra = remaining.replacingOccurrences(of: "|", with: " ")
+                    .split(separator: " ").joined(separator: " ")
+                guard ["", "merci", "s il vous plait", "s il te plait"].contains(extra) else { return nil }
+            }
+            return found[0]
+        }
         // « oui, encore » ou « oui, écrire » : la réponse précise l'emporte sur « oui ».
         if found.count == 2, found.contains(.yes), let other = found.first(where: { $0 == .again || $0 == .write }) {
             return other

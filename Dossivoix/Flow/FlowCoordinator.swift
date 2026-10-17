@@ -32,6 +32,7 @@ final class FlowCoordinator {
     private var machine = FlowMachine()
     /// Numéro de la chaîne d'effets en cours : une chaîne plus ancienne s'arrête d'elle-même.
     private var generation = 0
+    private var effectTask: Task<Void, Never>?
     /// Dernier résultat annoncé, réaffiché au retour au repos.
     private var lastResultMessage: String?
 
@@ -103,10 +104,9 @@ final class FlowCoordinator {
     func cancel() { send(.cancel) }
 
     /// Ouvre la saisie au clavier : la parole et l'écoute en cours s'arrêtent,
-    /// mais le parcours garde son état (le nom saisi remplacera la dictée).
+    /// et la machine conserve la cible pendant la saisie.
     func openKeyboardEntry(prefill: String? = nil) {
-        interruptChain()
-        textEntryRequest = TextEntryRequest(prefill: prefill)
+        send(.requestTextEntry(prefill: prefill))
     }
 
     /// Tout arrêter sans rien dire (app passée en arrière-plan).
@@ -114,13 +114,15 @@ final class FlowCoordinator {
         interruptChain()
         machine.reset()
         state = machine.state
-        audioSession.deactivate()
+        textEntryRequest = nil
+        returnToRest()
     }
 
     // MARK: - Boucle événement → effets
 
     private func send(_ event: FlowEvent) {
         interruptChain()
+        textEntryRequest = nil
         let effects = machine.handle(event)
         state = machine.state
         guard !effects.isEmpty else {
@@ -128,7 +130,13 @@ final class FlowCoordinator {
             return
         }
         let current = generation
-        Task {
+        effectTask = Task {
+            guard current == generation, !Task.isCancelled else { return }
+            // Le clavier seul n'a pas besoin de prendre la session audio.
+            if case .enteringName = state, effects.count == 1 {
+                await run(effects, generation: current)
+                return
+            }
             await audioSession.activate()
             await run(effects, generation: current)
         }
@@ -144,21 +152,27 @@ final class FlowCoordinator {
     /// Coupe la parole et l'écoute en cours ; la chaîne d'effets en cours s'arrêtera.
     private func interruptChain() {
         generation += 1
+        effectTask?.cancel()
+        effectTask = nil
+        isListening = false
         speechInput.cancel()
         speech.stop()
+        feedback.stop()
+        tags.cancel()
     }
 
     private func run(_ effects: [FlowEffect], generation current: Int) async {
         for effect in effects {
-            guard current == generation else { return }
+            guard current == generation, !Task.isCancelled else { return }
             switch effect {
             case .say(let text, let cue):
-                await announce(text, cue: cue)
+                await announce(text, cue: cue, generation: current)
 
             case .recordDiagnostic(let records):
                 diagnostics.add(TagDecoder.decode(records))
 
             case .showTextEntry(let prefill):
+                audioSession.deactivate()
                 textEntryRequest = TextEntryRequest(prefill: prefill)
 
             case .listen(let kind):
@@ -166,13 +180,13 @@ final class FlowCoordinator {
                 guard current == generation else { return }
                 isListening = true
                 let result = await speechInput.listen(kind)
-                isListening = false
                 guard current == generation else { return }
+                isListening = false
                 send(.heard(result))
                 return
 
             case .readTag:
-                let result = await withApproachPrompt(Phrases.approachTag) {
+                let result = await withApproachPrompt(Phrases.approachTag, generation: current) {
                     await self.tags.readTag()
                 }
                 guard current == generation else { return }
@@ -181,7 +195,7 @@ final class FlowCoordinator {
 
             case .writeTag(let records, let expectedCurrent, let isSecondPass):
                 let prompt = isSecondPass ? Phrases.approachTagAgain : Phrases.approachTag
-                let result = await withApproachPrompt(prompt) {
+                let result = await withApproachPrompt(prompt, generation: current) {
                     await self.tags.writeTag(records: records, expectedCurrent: expectedCurrent,
                                              isSecondPass: isSecondPass)
                 }
@@ -201,24 +215,26 @@ final class FlowCoordinator {
     /// Prononce la consigne pendant que la feuille NFC s'ouvre, puis la coupe dès que
     /// l'étiquette est traitée (ou que le NFC est indisponible).
     /// Avec VoiceOver, la feuille NFC est déjà lue : la consigne est omise (voir VoiceSettings).
-    private func withApproachPrompt<Value>(_ prompt: String, _ operation: () async -> Value) async -> Value {
+    private func withApproachPrompt<Value>(_ prompt: String, generation current: Int,
+                                           _ operation: () async -> Value) async -> Value {
         statusMessage = prompt
         let speaking = Task {
             let skipped = VoiceSettings.skipsApproachPromptWithVoiceOver && isVoiceOverRunning()
-            if !skipped && !Task.isCancelled {
+            if !skipped && !Task.isCancelled && current == generation {
                 await speech.speak(prompt)
             }
         }
         let value = await operation()
         speaking.cancel()
-        speech.stop()
+        // Une ancienne session NFC ne doit pas couper la parole du parcours suivant.
+        if current == generation { speech.stop() }
         await speaking.value
         return value
     }
 
     /// Affiche le message, joue le signal éventuel, puis prononce le message.
     /// Un message accompagné d'un signal est un résultat : il est gardé pour le retour au repos.
-    private func announce(_ text: String, cue: FeedbackCue?) async {
+    private func announce(_ text: String, cue: FeedbackCue?, generation current: Int) async {
         statusMessage = text
         if cue != nil {
             lastResultMessage = text
@@ -226,6 +242,7 @@ final class FlowCoordinator {
         if let cue {
             await feedback.play(cue)
         }
+        guard current == generation, !Task.isCancelled else { return }
         await speech.speak(text)
     }
 }

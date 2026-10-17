@@ -24,7 +24,8 @@ public enum WriteDecision: Equatable, Sendable {
 /// - 1er passage (`expectedCurrent == nil`) : une étiquette vide, ou portant déjà le même nom,
 ///   est écrite directement ; sinon on demande confirmation avant de remplacer.
 /// - 2e passage (`expectedCurrent` = contenu lu au 1er passage) : on n'écrit que si le contenu
-///   est toujours le même, pour ne pas écraser une autre étiquette par erreur.
+///   est toujours le même. Deux étiquettes portant les mêmes données ne sont pas distinguées :
+///   ce contrôle porte sur le contenu, pas sur l'identité physique de l'étiquette.
 /// - On n'écrit jamais sur une étiquette verrouillée, et on ne la verrouille jamais.
 public enum WritePlanner {
     public static func decide(

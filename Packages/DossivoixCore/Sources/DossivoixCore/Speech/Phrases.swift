@@ -123,7 +123,7 @@ public enum Phrases {
         case .writeFailed:
             return "L'écriture a échoué. Recommencez."
         case .differentTag:
-            return "Ce n'est pas la même étiquette, ou son contenu a changé. Rien n'a été écrit."
+            return "Le contenu de cette étiquette ne correspond pas au contenu attendu. Rien n'a été écrit."
         case .unknown:
             return operation == .reading ? "La lecture a échoué. Recommencez." : "L'écriture a échoué. Recommencez."
         }

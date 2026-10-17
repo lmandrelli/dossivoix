@@ -12,7 +12,9 @@ par le SmartVision.
 - Utilisation entièrement vocale (synthèse et reconnaissance en français), compatible VoiceOver.
 - Lancement par **Siri classique**, sans Apple Intelligence ni configuration.
 - Grands boutons à fort contraste en secours, saisie au clavier possible.
-- Aucune donnée collectée, aucun serveur, aucune dépendance externe.
+- Aucune collecte automatique par le développeur, aucun serveur applicatif, aucune dépendance externe.
+  Le service Speech peut traiter l'audio chez Apple si la reconnaissance sur l'iPhone est indisponible.
+- Confidentialité, assistance et contact accessibles depuis **À propos** dans l'app.
 
 Pages publiques (GitHub Pages, dossier [`docs/`](docs/)) :
 [assistance](https://lmandrelli.github.io/dossivoix/support) ·
@@ -60,10 +62,16 @@ l'étiquette » → écriture puis relecture de contrôle → « Étiquette écr
 
 Si l'étiquette contient déjà autre chose : « Cette étiquette contient déjà : … Voulez-vous
 la remplacer par : … ? ». Après un *oui*, il faut **approcher l'étiquette une deuxième
-fois**. L'écriture n'a lieu que si son contenu n'a pas changé, ce qui évite d'écraser
-une autre étiquette par erreur. **Une étiquette n'est jamais verrouillée.**
+fois**. L'écriture n'a lieu que si son contenu correspond au contenu attendu.
+Cette vérification ne porte pas sur l'identité physique : deux étiquettes avec exactement
+le même contenu ne sont pas distinguées. Présentez à nouveau l'étiquette choisie.
+**Une étiquette n'est jamais verrouillée.**
+
+Les confirmations doivent être sans ambiguïté : une phrase comme « ne remplace pas »
+ne vaut jamais « oui » et conduit à une nouvelle question.
 
 Après deux réponses incomprises, l'app renvoie vers l'écran (boutons ou clavier).
+Le clavier conserve la cible et le contenu attendu pendant un renommage ou remplacement.
 
 ---
 
@@ -141,7 +149,7 @@ Message NDEF de 54 octets, deux *short records* MIME `text/plain`, sans identifi
 
 ### Prérequis
 
-- Mac avec **Xcode 16 ou plus récent** (développé avec Xcode 27). Cible : iOS 17, iPhone uniquement.
+- Mac avec **Xcode 26 ou plus récent** (développé avec Xcode 27). Cible : iOS 17, iPhone uniquement.
 - **Compte Apple Developer payant** (99 €/an). La capacité *NFC Tag Reading* n'est pas
   disponible avec une équipe personnelle gratuite. Elle est indispensable même pour
   installer l'app sur son propre iPhone.
@@ -184,13 +192,24 @@ Ces options n'existent pas dans les versions de publication.
 cd Packages/DossivoixCore && swift test
 ```
 
-Ou **⌘U** dans Xcode (schéma *Dossivoix*). Les 94 tests couvrent :
+Ou **⌘U** dans Xcode (schéma *Dossivoix*). Les tests du package couvrent :
 
 - le codec NDEF et le format SmartVision, à partir des octets réels ;
 - le décodage tolérant et le diagnostic ;
 - la capacité des étiquettes et les règles d'écriture (remplacement, 2ᵉ passage, verrouillage) ;
 - l'interprétation des réponses vocales ;
 - la machine à états, parcours complets compris.
+
+La cible **DossivoixTests** ajoute des tests iOS du coordinateur et de la reconnaissance,
+avec services simulés : annulation pendant les autorisations, callbacks tardifs, arrêt pendant
+un signal sonore, résultat NFC tardif et libération de l'audio au passage au clavier.
+
+```bash
+xcodebuild -project Dossivoix.xcodeproj -scheme Dossivoix \
+  -destination 'platform=iOS Simulator,name=iPhone 17e' test
+```
+
+Choisir un simulateur installé. Ces tests ne remplacent pas les essais NFC, Siri et VoiceOver sur iPhone réel.
 
 ---
 
@@ -225,10 +244,12 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 étiquette dédiée uniquement**), des écouteurs Bluetooth, de la musique en lecture.
 
 ### Premier lancement
-- [ ] Les trois demandes d'autorisation (NFC, micro, reconnaissance vocale) s'affichent en
-      français, au bon moment (micro et reconnaissance : à la première écoute).
+- [ ] La feuille NFC et les demandes micro/reconnaissance ont des explications en français ;
+      le micro et la reconnaissance sont demandés à la première écoute.
 - [ ] Refuser micro ou reconnaissance : l'app annonce que la reconnaissance vocale n'est pas
       disponible et ouvre la saisie au clavier ; la lecture reste possible.
+- [ ] « À propos » permet d'ouvrir la confidentialité, l'assistance et le contact sans activer le diagnostic.
+- [ ] Passer en arrière-plan pendant une demande d'autorisation : aucune écoute ne démarre après l'arrêt.
 
 ### Lecture (sans VoiceOver)
 - [ ] Étiquette SmartVision : le nom est annoncé, sans le marqueur ni l'espace final.
@@ -239,7 +260,8 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 - [ ] Attendre 60 s sans étiquette : « Aucune étiquette détectée », puis proposition encore / écrire.
 - [ ] Dire « encore » : nouvelle lecture. Ne rien dire : l'app s'arrête, le nom reste affiché.
 - [ ] Dire « écrire » après une lecture : « Dites le nouveau nom pour : … », renommage sans
-      question de remplacement ; avec une autre étiquette, refus « Ce n'est pas la même étiquette ».
+      question de remplacement ; avec un contenu différent, refus « Le contenu de cette étiquette
+      ne correspond pas au contenu attendu ».
 
 ### Écriture (sans VoiceOver)
 - [ ] Dictée d'un nom, fin détectée après un court silence ; majuscule initiale appliquée.
@@ -248,7 +270,10 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 - [ ] Nom très long (> 110 caractères) : demande d'un nom plus court, avant d'approcher l'étiquette.
 - [ ] Étiquette vierge : écrite directement, « Étiquette écrite : … », puis relecture correcte.
 - [ ] Étiquette déjà écrite : question « Remplacer ? » ; « non » la laisse intacte ; « oui » puis
-      2ᵉ passage avec la **même** étiquette : remplacée ; avec une **autre** : refus, rien d'écrit.
+      2ᵉ passage avec l'étiquette choisie : remplacée ; avec un **contenu différent** : refus, rien d'écrit.
+- [ ] Dire « ne remplace pas », « je ne confirme pas » ou « pas correct » : aucune écriture autorisée.
+- [ ] Pendant un renommage, obtenir le repli automatique au clavier puis présenter une étiquette vierge
+      différente : refus si son contenu ne correspond pas au contenu initial.
 - [ ] Étiquette verrouillée : « Cette étiquette est verrouillée ».
 - [ ] Vérifier qu'aucune étiquette écrite par l'app n'est verrouillée (TagInfo).
 - [ ] Saisie au clavier : écriture sans confirmation orale.
@@ -260,6 +285,7 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 - [ ] Écouteurs Bluetooth : la voix passe dans les écouteurs.
 - [ ] Mode silencieux activé : la voix reste audible.
 - [ ] Appel entrant ou passage en arrière-plan pendant un parcours : l'app se tait, puis reste utilisable.
+- [ ] Arrêter pendant le bip de succès : le nom n'est pas prononcé après l'arrêt.
 
 ### Avec VoiceOver
 - [ ] Les boutons sont annoncés clairement (« Lire une étiquette », « Écrire une étiquette »…).
@@ -281,6 +307,7 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 - [ ] iPhone **verrouillé** : Siri demande Face ID / code, puis le parcours démarre.
 - [ ] Avec VoiceOver actif, depuis l'écran verrouillé.
 - [ ] « Dis Siri » mains libres et bouton latéral.
+- [ ] Quitter l'app pendant le délai de lancement Siri : le parcours ne démarre pas en arrière-plan.
 - [ ] Si Siri comprend mal « Dossivoix » : noter ce qu'il comprend et l'ajouter dans `INAlternativeAppNames`.
 - [ ] Les raccourcis apparaissent dans l'app Raccourcis et dans la recherche.
 

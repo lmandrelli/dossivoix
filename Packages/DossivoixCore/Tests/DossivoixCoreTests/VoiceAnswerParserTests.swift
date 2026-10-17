@@ -46,4 +46,16 @@ final class VoiceAnswerParserTests: XCTestCase {
         XCTAssertFalse(VoiceAnswerParser.isStandaloneCancel("Annulation de contrat"))
         XCTAssertFalse(VoiceAnswerParser.isStandaloneCancel("Factures 2024"))
     }
+
+    func testNegationNeverGrantsConsent() {
+        assertParse(["ne remplace pas", "je ne confirme pas", "pas correct", "surtout pas remplacer",
+                     "jamais remplacer", "je n'ai pas dit oui", "oui mais pas maintenant",
+                     "je ne veux plus confirmer", "sans confirmer"], nil)
+        assertParse(["c'est pas ça", "pas d'accord", "pas bon"], .no)
+    }
+
+    func testConfirmationMustBeUnambiguous() {
+        assertParse(["peut être oui", "oui si ça marche", "remplacer serait une erreur"], nil)
+        assertParse(["oui merci", "oui s'il vous plaît", "oui oui", "oui c'est bon"], .yes)
+    }
 }
