@@ -44,7 +44,8 @@ Articulez « Dossi-voix ». Vous pouvez aussi ouvrir l'app et utiliser les grand
 Oui : Dossivoix lit et écrit le même format que le Kapsys SmartVision 2.
 
 **Une étiquette annonce « format non reconnu ».**
-Ouvrez l'écran « Diagnostic » (en haut à droite), touchez « Partager ce rapport » et
+Activez **Réglages → Dossivoix → Mode diagnostic**, puis dans Dossivoix ouvrez l'écran
+« Diagnostic » (en haut à droite), touchez « Partager ce rapport » et
 joignez-le à votre demande d'aide : il permettra d'ajouter ce format.
 
 ## Nous contacter

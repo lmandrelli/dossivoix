@@ -16,10 +16,11 @@ folder's name aloud. The app can also write new tags: the user dictates the fold
 The whole app is in French and designed to be used by voice and with VoiceOver.
 
 **No data collection.** No account, no server, no analytics, no ads, no tracking. Tag contents
-are kept in memory only (Diagnostic screen). Speech recognition uses Apple's Speech framework,
-on device when available. A Diagnostic report leaves the device only if the user shares it
-through the standard share sheet. Privacy manifest included (no data collected, no
-required-reason API used).
+are kept in memory only (Diagnostic screen, hidden unless "Mode diagnostic" is turned on in
+Settings → Dossivoix). Speech recognition uses Apple's Speech framework, on device when
+available. A Diagnostic report leaves the device only if the user shares it through the standard
+share sheet. Privacy manifest included (no data collected; UserDefaults declared with reason
+CA92.1, only to read the app's own "Mode diagnostic" setting).
 
 **Permissions.**
 - NFC (NFCNDEFReaderSession): read and write NDEF tags. Tags are never locked.

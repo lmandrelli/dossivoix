@@ -125,7 +125,9 @@ Message NDEF de 54 octets, deux *short records* MIME `text/plain`, sans identifi
 - **Lecture** : tolérante. Le marqueur est ignoré, les espaces superflus sont supprimés, et
   les textes « Well-known » (RTD_TEXT, UTF-8 ou UTF-16) sont acceptés. Tout contenu inconnu
   est annoncé comme « Étiquette d'un format non reconnu » et détaillé dans l'écran
-  **Diagnostic** (TNF, type, contenu en hexadécimal et en UTF-8), à partager.
+  **Diagnostic** (TNF, type, contenu en hexadécimal et en UTF-8), à partager. Cet écran
+  n'est accessible qu'après avoir activé **Réglages → Dossivoix → Mode diagnostic**
+  (désactivé par défaut).
 - **Capacité** : 141 octets de message sur une NTAG 213, soit 110 octets pour le nom.
   Une lettre accentuée compte pour 2 octets. La capacité réelle de l'étiquette est
   revérifiée au moment d'écrire.
@@ -206,6 +208,7 @@ Ou **⌘U** dans Xcode (schéma *Dossivoix*). Les 94 tests couvrent :
 | Délais d'écoute (début, silence, durée max) | `ListenKind.timing` |
 | Nombre d'essais avant renvoi vers l'écran | `FlowMachine.maxAttempts` |
 | Cohabitation avec VoiceOver | `VoiceSettings` (`AdaptiveSpeechOutput.swift`) |
+| Mode diagnostic (Réglages d'iOS) | `Dossivoix/Settings.bundle/Root.plist`, clé `diagnosticModeEnabled` |
 | Sons « j'écoute », succès, erreur | `FeedbackCue.notes` |
 
 **VoiceOver** : par défaut, l'app parle elle-même avec la voix et le débit de VoiceOver.
@@ -292,7 +295,8 @@ But : vérifier que les étiquettes passent d'un appareil à l'autre dans les de
    dont une avec accents (« Impôts 2024 ») et une longue. Les noms doivent être annoncés correctement.
 2. **iPhone → SmartVision** : écrire avec Dossivoix 3 étiquettes vierges (même noms), puis
    les lire avec le SmartVision.
-3. **Comparer les octets** : dans Dossivoix, écran **Diagnostic**, partager le rapport d'une
+3. **Comparer les octets** : activer Réglages → Dossivoix → Mode diagnostic, puis dans Dossivoix,
+   écran **Diagnostic**, partager le rapport d'une
    étiquette écrite par le SmartVision et celui d'une étiquette écrite par Dossivoix avec le
    même nom. Les lignes « Octets » doivent être identiques. Faire de même avec NXP TagInfo.
 4. **Si le SmartVision ne lit pas** les étiquettes de Dossivoix, essayer dans l'ordre :
@@ -326,8 +330,8 @@ Nom prévu : **Dossivoix – Étiquettes NFC vocales**. App gratuite, développe
 
 Points de conformité déjà en place :
 - aucune API privée, aucune dépendance ;
-- manifeste de confidentialité `PrivacyInfo.xcprivacy` (rien de collecté, aucune API
-  « à justification ») ;
+- manifeste de confidentialité `PrivacyInfo.xcprivacy` (rien de collecté ; seule API
+  « à justification » : UserDefaults, motif CA92.1, pour le réglage « Mode diagnostic ») ;
 - textes d'autorisation explicites en français ;
 - fonctionnement clair sans étiquette : chaque situation a un message.
 

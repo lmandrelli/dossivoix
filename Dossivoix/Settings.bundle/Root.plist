@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Réglages de Dossivoix dans l'app Réglages d'iOS (Réglages → Dossivoix).
+  « Mode diagnostic » affiche l'accès à l'écran Diagnostic dans l'app (désactivé par défaut).
+  La clé est lue dans l'app par @AppStorage("diagnosticModeEnabled").
+-->
+<plist version="1.0">
+<dict>
+	<key>StringsTable</key>
+	<string>Root</string>
+	<key>PreferenceSpecifiers</key>
+	<array>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>Dépannage</string>
+			<key>FooterText</key>
+			<string>Affiche le bouton « Diagnostic » en haut de l'écran de Dossivoix. Il donne le détail technique des dernières étiquettes lues, à partager pour signaler un problème. Rien n'est envoyé automatiquement.</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Mode diagnostic</string>
+			<key>Key</key>
+			<string>diagnosticModeEnabled</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
+	</array>
+</dict>
+</plist>
