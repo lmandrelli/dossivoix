@@ -9,10 +9,11 @@ import DossivoixCore
 ///   (« Lire » / « Écrire », « C'est bon » / « Recommencer », « Remplacer » / « Annuler ») ;
 /// - en bas, « Clavier » et « Arrêter », toujours présents (grisés quand inutiles) ;
 /// - tout en bas, une zone réservée au panneau « J'écoute ».
-/// Toujours en noir sur blanc, sans aucun aplat noir : avec l'inversion intelligente,
-/// tout l'écran apparaît en blanc sur noir.
+/// Deux couleurs seulement (voir Palette) : noir sur blanc en thème clair, ce qui donne
+/// du blanc sur noir avec l'inversion intelligente, et blanc sur noir en thème foncé.
 struct MainView: View {
     @Bindable var coordinator: FlowCoordinator
+    @Environment(\.palette) private var palette
 
     /// Hauteur réservée au panneau « J'écoute » (toujours réservée, même vide).
     private static let listeningSlotHeight: CGFloat = 112
@@ -23,7 +24,7 @@ struct MainView: View {
                 VStack(spacing: 16) {
                     Text(coordinator.statusMessage)
                         .font(.system(.title, weight: .bold))
-                        .foregroundStyle(.black)
+                        .foregroundStyle(palette.ink)
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.5)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -46,7 +47,7 @@ struct MainView: View {
                 ListeningPanel(isVisible: coordinator.isListening)
                     .frame(height: Self.listeningSlotHeight)
             }
-            .background(Color.white)
+            .background(palette.paper)
             .navigationTitle(AppIdentity.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -170,10 +171,10 @@ struct MainView: View {
                 .font(.title3.bold())
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .foregroundStyle(.black)
+                .foregroundStyle(palette.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(.white, in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.black, lineWidth: 3))
+                .background(palette.paper, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(palette.ink, lineWidth: 3))
                 .opacity(isEnabled ? 1 : 0.3)
         }
         .buttonStyle(StillButtonStyle())
@@ -199,6 +200,7 @@ private struct WriteSheet: View {
 
     @State private var name: String
     @FocusState private var isFieldFocused: Bool
+    @Environment(\.palette) private var palette
 
     init(prefill: String?, onConfirm: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
         self.onConfirm = onConfirm
@@ -213,9 +215,9 @@ private struct WriteSheet: View {
             VStack(spacing: 24) {
                 TextField("Nom du dossier", text: $name)
                     .font(.title)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(palette.ink)
                     .padding()
-                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.black, lineWidth: 3))
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(palette.ink, lineWidth: 3))
                     .submitLabel(.done)
                     .focused($isFieldFocused)
                     .onSubmit(confirm)
@@ -233,7 +235,7 @@ private struct WriteSheet: View {
                 Spacer()
             }
             .padding()
-            .background(Color.white)
+            .background(palette.paper)
             .navigationTitle("Écrire une étiquette")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -262,5 +264,5 @@ private struct WriteSheet: View {
         feedback: SilentFeedback(),
         audioSession: SilentAudioSession()
     ))
-    .preferredColorScheme(.light)
+    .adaptivePalette()
 }

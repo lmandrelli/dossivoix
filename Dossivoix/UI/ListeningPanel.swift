@@ -10,6 +10,7 @@ struct ListeningPanel: View {
     let isVisible: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.palette) private var palette
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -28,28 +29,28 @@ struct ListeningPanel: View {
 
     private var panel: some View {
         HStack(spacing: 20) {
-            // Bulle blanche à contour noir (pas d'aplat noir, qui deviendrait blanc une fois inversé).
+            // Bulle « papier » à contour « encre » (pas d'aplat d'encre, éblouissant une fois inversé).
             SpeechBubble()
-                .fill(.white)
-                .overlay(SpeechBubble().stroke(.black, style: StrokeStyle(lineWidth: 4, lineJoin: .round)))
+                .fill(palette.paper)
+                .overlay(SpeechBubble().stroke(palette.ink, style: StrokeStyle(lineWidth: 4, lineJoin: .round)))
                 .frame(width: 132, height: 72)
                 .overlay {
                     WaveBars(isAnimated: !reduceMotion)
-                        .foregroundStyle(.black)
+                        .foregroundStyle(palette.ink)
                         .frame(width: 92, height: 44)
                         .offset(y: -3)
                 }
             Text("J'écoute…")
                 .font(.system(.title, weight: .heavy))
-                .foregroundStyle(.black)
+                .foregroundStyle(palette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(.white, in: RoundedRectangle(cornerRadius: 28))
-        .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(.black, lineWidth: 4))
+        .background(palette.paper, in: RoundedRectangle(cornerRadius: 28))
+        .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(palette.ink, lineWidth: 4))
         .padding(.horizontal)
         .padding(.bottom, 8)
     }

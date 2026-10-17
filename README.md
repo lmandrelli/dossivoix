@@ -266,8 +266,10 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 - [ ] VoiceOver ne parle pas pendant les écoutes (sinon, l'écoute capte VoiceOver).
 - [ ] Parcours complets lecture et écriture uniquement à la voix.
 - [ ] Taille de texte maximale (Réglages → Accessibilité → Affichage et taille du texte) : tout reste lisible.
-- [ ] **Inversion intelligente** (Réglages → Accessibilité → Affichage et taille du texte) : fond noir et
-      texte blanc, que l'iPhone soit en mode clair ou sombre. Sans inversion, l'app reste en noir sur blanc.
+- [ ] **Thème clair** : noir sur blanc. **Thème foncé** : blanc sur noir.
+- [ ] **Inversion intelligente** (Réglages → Accessibilité → Affichage et taille du texte) en thème clair :
+      fond noir et texte blanc, sans aucun bloc blanc. En thème foncé + inversion (rare), l'app repasse en
+      noir sur blanc pour rester sombre une fois inversée.
 - [ ] Rien ne bouge à l'écran, sauf le panneau « J'écoute » ; avec « Réduire les animations », il apparaît
       en fondu et ses barres restent immobiles.
 

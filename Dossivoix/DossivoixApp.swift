@@ -14,10 +14,9 @@ struct DossivoixApp: App {
     var body: some Scene {
         WindowGroup {
             MainView(coordinator: coordinator)
-                // Toujours clair (noir sur blanc), même si l'iPhone est en mode sombre :
-                // avec l'inversion intelligente, l'app apparaît ainsi toujours en blanc sur noir.
-                .preferredColorScheme(.light)
-                .tint(.black)
+                // Noir sur blanc en thème clair (blanc sur noir avec l'inversion intelligente),
+                // blanc sur noir en thème foncé. Voir Palette.
+                .adaptivePalette()
                 .onChange(of: launchRouter.pending) {
                     startPendingAction()
                 }
