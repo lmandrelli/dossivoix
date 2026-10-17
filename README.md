@@ -268,8 +268,8 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 - [ ] Taille de texte maximale (Réglages → Accessibilité → Affichage et taille du texte) : tout reste lisible.
 - [ ] **Thème clair** : noir sur blanc. **Thème foncé** : blanc sur noir.
 - [ ] **Inversion intelligente** (Réglages → Accessibilité → Affichage et taille du texte) en thème clair :
-      fond noir et texte blanc, sans aucun bloc blanc. En thème foncé + inversion (rare), l'app repasse en
-      noir sur blanc pour rester sombre une fois inversée.
+      fond noir et texte blanc, sans aucun bloc blanc. En thème foncé + inversion : l'app doit rester en
+      blanc sur noir (iOS épargne les apps au style sombre). Non testable dans le simulateur.
 - [ ] Rien ne bouge à l'écran, sauf le panneau « J'écoute » ; avec « Réduire les animations », il apparaît
       en fondu et ses barres restent immobiles.
 

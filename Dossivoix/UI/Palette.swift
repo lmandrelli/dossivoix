@@ -2,12 +2,14 @@ import SwiftUI
 
 /// Les deux seules couleurs de l'app : l'encre (texte, contours) et le papier (fonds).
 ///
-/// - Thème clair : noir sur blanc. Avec l'inversion intelligente, l'écran apparaît en blanc sur noir.
-/// - Thème foncé : blanc sur noir.
-/// - Thème foncé + inversion intelligente (rare) : l'app repasse en noir sur blanc pour que,
-///   une fois inversée, elle reste en blanc sur noir.
+/// - Thème clair : noir sur blanc. Avec l'inversion intelligente, iOS inverse l'app :
+///   elle apparaît en blanc sur noir.
+/// - Thème foncé : blanc sur noir. Avec l'inversion intelligente, iOS épargne les apps
+///   au style sombre (« sauf […] certaines apps qui utilisent un style de couleur sombre ») :
+///   l'app reste en blanc sur noir.
 ///
-/// Jamais d'aplat de la couleur d'encre : il deviendrait un bloc éblouissant une fois inversé.
+/// Jamais d'aplat de la couleur d'encre : en thème clair inversé, il deviendrait un bloc
+/// blanc éblouissant.
 struct Palette: Equatable {
     let ink: Color
     let paper: Color
@@ -15,8 +17,8 @@ struct Palette: Equatable {
     static let blackOnWhite = Palette(ink: .black, paper: .white)
     static let whiteOnBlack = Palette(ink: .white, paper: .black)
 
-    static func current(colorScheme: ColorScheme, invertColors: Bool) -> Palette {
-        colorScheme == .dark && !invertColors ? .whiteOnBlack : .blackOnWhite
+    static func current(colorScheme: ColorScheme) -> Palette {
+        colorScheme == .dark ? .whiteOnBlack : .blackOnWhite
     }
 }
 
@@ -31,13 +33,12 @@ extension EnvironmentValues {
     }
 }
 
-/// Choisit la palette selon le thème et l'inversion intelligente, et la transmet aux vues.
+/// Choisit la palette selon le thème de l'iPhone, et la transmet aux vues.
 private struct AdaptivePalette: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityInvertColors) private var invertColors
 
     func body(content: Content) -> some View {
-        let palette = Palette.current(colorScheme: colorScheme, invertColors: invertColors)
+        let palette = Palette.current(colorScheme: colorScheme)
         content
             .environment(\.palette, palette)
             .tint(palette.ink)
