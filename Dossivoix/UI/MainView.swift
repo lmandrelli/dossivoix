@@ -120,6 +120,9 @@ private struct WriteSheet: View {
     MainView(coordinator: FlowCoordinator(
         tagReader: FakeTagReader(result: .success(
             SmartVisionFormat.standard.records(forFolderName: "Dossier panneau solaire")
-        ))
+        )),
+        speech: SilentSpeechOutput(),
+        feedback: SilentFeedback(),
+        audioSession: SilentAudioSession()
     ))
 }
