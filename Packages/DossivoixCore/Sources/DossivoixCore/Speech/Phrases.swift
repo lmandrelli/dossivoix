@@ -29,11 +29,45 @@ public enum Phrases {
         }
     }
 
+    // MARK: - Écriture
+
+    public static let approachTagAgain = "Approchez à nouveau l'étiquette."
+    public static let writeCanceledTagUnchanged = "Écriture annulée. L'étiquette n'a pas été modifiée."
+
+    /// Le nom ne tiendra pas sur une NTAG 213 : on le dit avant même d'approcher l'étiquette.
+    public static func nameTooLong(_ check: CapacityCheck) -> String {
+        "Ce nom est trop long pour une étiquette. "
+            + "Raccourcissez-le d'environ \(check.excessBytes) lettre\(check.excessBytes > 1 ? "s" : "")."
+    }
+
+    /// Question posée quand l'étiquette contient déjà autre chose.
+    public static func askReplace(existing: DecodedTag, newName: String) -> String {
+        switch existing.outcome {
+        case .folderName(let oldName):
+            return "Cette étiquette contient déjà : \(oldName). Voulez-vous la remplacer par : \(newName) ?"
+        case .empty, .unrecognized:
+            return "Cette étiquette contient déjà des informations d'un format non reconnu. "
+                + "Voulez-vous les remplacer par : \(newName) ?"
+        }
+    }
+
+    public static func written(_ name: String) -> String {
+        "Étiquette écrite : \(name)."
+    }
+
+    public static func alreadyWritten(_ name: String) -> String {
+        "Cette étiquette porte déjà le nom : \(name)."
+    }
+
     // MARK: - Feuille système NFC (texte affiché par iOS pendant la session)
 
     public static let nfcSheetApproach = "Approchez le haut de l'iPhone de l'étiquette."
+    public static let nfcSheetApproachAgain = "Approchez à nouveau le haut de l'iPhone de l'étiquette."
     public static let nfcSheetSeveralTags = "Plusieurs étiquettes détectées. N'en approchez qu'une seule."
     public static let nfcSheetReadDone = "Étiquette lue."
+    public static let nfcSheetWriteDone = "Étiquette écrite."
+    public static let nfcSheetAlreadyUpToDate = "Étiquette déjà à jour."
+    public static let nfcSheetTagInUse = "Étiquette déjà utilisée."
 
     // MARK: - Erreurs
 
@@ -60,6 +94,8 @@ public enum Phrases {
             return "Le nom est trop long pour cette étiquette."
         case .writeFailed:
             return "L'écriture a échoué. Recommencez."
+        case .differentTag:
+            return "Ce n'est pas la même étiquette, ou son contenu a changé. Rien n'a été écrit."
         case .unknown:
             return operation == .reading ? "La lecture a échoué. Recommencez." : "L'écriture a échoué. Recommencez."
         }

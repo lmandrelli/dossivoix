@@ -13,6 +13,28 @@ extension NDEFRecord {
     }
 }
 
+extension NFCNDEFPayload {
+    /// Conversion vers un enregistrement CoreNFC, pour l'écriture.
+    convenience init(_ record: NDEFRecord) {
+        self.init(
+            format: NFCTypeNameFormat(rawValue: record.typeNameFormat.rawValue) ?? .unknown,
+            type: record.type,
+            identifier: record.identifier,
+            payload: record.payload
+        )
+    }
+}
+
+extension TagWriteStatus {
+    init(_ status: NFCNDEFStatus) {
+        switch status {
+        case .readWrite: self = .readWrite
+        case .readOnly: self = .readOnly
+        default: self = .notSupported
+        }
+    }
+}
+
 extension TagError {
     /// Traduction d'une erreur CoreNFC en erreur simple.
     init(nfcError error: Error) {

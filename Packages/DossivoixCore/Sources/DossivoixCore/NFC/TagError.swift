@@ -21,8 +21,10 @@ public enum TagError: Error, Equatable, Sendable {
     case readOnly
     /// Le message ne tient pas sur l'étiquette (capacité en octets).
     case insufficientCapacity(maxMessageLength: Int)
-    /// L'écriture a échoué pour une autre raison.
+    /// L'écriture a échoué pour une autre raison (y compris si la relecture ne correspond pas).
     case writeFailed
+    /// Au 2e passage, le contenu n'est plus celui vu au 1er : autre étiquette ? Rien n'est écrit.
+    case differentTag
     /// Autre erreur, avec sa description technique (pour le diagnostic).
     case unknown(String)
 }

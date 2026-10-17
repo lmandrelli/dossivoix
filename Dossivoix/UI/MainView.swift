@@ -18,26 +18,10 @@ struct MainView: View {
                         .frame(maxWidth: .infinity, minHeight: 100)
                         .accessibilityLabel("État : \(coordinator.statusMessage)")
 
-                    BigActionButton(
-                        title: "Lire",
-                        systemImage: "wave.3.right",
-                        accessibilityLabel: "Lire une étiquette",
-                        accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
-                        foreground: HighContrast.readForeground,
-                        background: HighContrast.readBackground
-                    ) {
-                        Task { await coordinator.startReading() }
-                    }
-
-                    BigActionButton(
-                        title: "Écrire",
-                        systemImage: "square.and.pencil",
-                        accessibilityLabel: "Écrire une étiquette",
-                        accessibilityHint: "Permet de saisir le nom du dossier.",
-                        foreground: HighContrast.writeForeground,
-                        background: HighContrast.writeBackground
-                    ) {
-                        isShowingWriteSheet = true
+                    if let pending = coordinator.pendingReplace {
+                        replaceButtons(for: pending)
+                    } else {
+                        mainButtons
                     }
                 }
                 .padding()
@@ -60,6 +44,60 @@ struct MainView: View {
                     isShowingWriteSheet = false
                     Task { await coordinator.startWriting(folderName: name) }
                 }
+            }
+        }
+    }
+
+    /// Boutons habituels : « Lire » et « Écrire ».
+    private var mainButtons: some View {
+        Group {
+            BigActionButton(
+                title: "Lire",
+                systemImage: "wave.3.right",
+                accessibilityLabel: "Lire une étiquette",
+                accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
+                foreground: HighContrast.readForeground,
+                background: HighContrast.readBackground
+            ) {
+                Task { await coordinator.startReading() }
+            }
+
+            BigActionButton(
+                title: "Écrire",
+                systemImage: "square.and.pencil",
+                accessibilityLabel: "Écrire une étiquette",
+                accessibilityHint: "Permet de saisir le nom du dossier.",
+                foreground: HighContrast.writeForeground,
+                background: HighContrast.writeBackground
+            ) {
+                isShowingWriteSheet = true
+            }
+        }
+    }
+
+    /// Confirmation du remplacement d'une étiquette déjà écrite.
+    private func replaceButtons(for pending: PendingReplace) -> some View {
+        Group {
+            BigActionButton(
+                title: "Remplacer",
+                systemImage: "arrow.triangle.2.circlepath",
+                accessibilityLabel: "Remplacer par \(pending.name)",
+                accessibilityHint: "Approchez ensuite à nouveau l'étiquette.",
+                foreground: HighContrast.readForeground,
+                background: HighContrast.readBackground
+            ) {
+                Task { await coordinator.confirmReplace() }
+            }
+
+            BigActionButton(
+                title: "Annuler",
+                systemImage: "xmark",
+                accessibilityLabel: "Annuler",
+                accessibilityHint: "L'étiquette ne sera pas modifiée.",
+                foreground: HighContrast.writeForeground,
+                background: HighContrast.writeBackground
+            ) {
+                Task { await coordinator.cancelReplace() }
             }
         }
     }
@@ -118,7 +156,7 @@ private struct WriteSheet: View {
 
 #Preview("Lecture simulée") {
     MainView(coordinator: FlowCoordinator(
-        tagReader: FakeTagReader(result: .success(
+        tags: FakeTagService(readResult: .success(
             SmartVisionFormat.standard.records(forFolderName: "Dossier panneau solaire")
         )),
         speech: SilentSpeechOutput(),

@@ -29,7 +29,7 @@ final class PhrasesTests: XCTestCase {
         let errors: [TagError] = [
             .readingUnavailable, .userCanceled, .timeout, .systemBusy, .tagRemoved, .unreadable,
             .notNDEFCompatible, .readOnly, .insufficientCapacity(maxMessageLength: 137), .writeFailed,
-            .unknown("x"),
+            .differentTag, .unknown("x"),
         ]
         for error in errors {
             XCTAssertFalse(Phrases.message(for: error, during: .reading).isEmpty, "\(error)")
