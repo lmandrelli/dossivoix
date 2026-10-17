@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Lecture et écriture NFC (NFCNDEFReaderSession).
+  Depuis le SDK iOS 17, App Store Connect refuse la valeur "NDEF" seule (erreur ITMS-90778,
+  « NDEF is disallowed ») : la valeur "TAG" couvre aussi les sessions NDEF.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.nfc.readersession.formats</key>
+	<array>
+		<string>TAG</string>
+	</array>
+</dict>
+</plist>

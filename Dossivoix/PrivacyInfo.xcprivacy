@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Manifeste de confidentialité de Dossivoix.
+  L'app ne suit pas l'utilisatrice, ne collecte aucune donnée et n'envoie rien sur le réseau.
+  Aucune API « à justification » (UserDefaults, horodatage de fichiers…) n'est utilisée pour l'instant :
+  si cela change, l'ajouter dans NSPrivacyAccessedAPITypes.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>
