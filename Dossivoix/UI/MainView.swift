@@ -9,7 +9,8 @@ import DossivoixCore
 ///   (« Lire » / « Écrire », « C'est bon » / « Recommencer », « Remplacer » / « Annuler ») ;
 /// - en bas, « Clavier » et « Arrêter », toujours présents (grisés quand inutiles) ;
 /// - tout en bas, une zone réservée au panneau « J'écoute ».
-/// Toujours en noir sur blanc : avec l'inversion intelligente, l'app apparaît en blanc sur noir.
+/// Toujours en noir sur blanc, sans aucun aplat noir : avec l'inversion intelligente,
+/// tout l'écran apparaît en blanc sur noir.
 struct MainView: View {
     @Bindable var coordinator: FlowCoordinator
 
@@ -29,8 +30,8 @@ struct MainView: View {
                         .frame(height: geometry.size.height * 0.24)
                         .accessibilityLabel("État : \(coordinator.statusMessage)")
 
-                    actionButton(primaryAction, style: .filled)
-                    actionButton(secondaryAction, style: .outlined)
+                    actionButton(primaryAction)
+                    actionButton(secondaryAction)
 
                     secondaryButtons
                         .frame(height: 60)
@@ -132,13 +133,12 @@ struct MainView: View {
         }
     }
 
-    private func actionButton(_ content: ButtonContent, style: BigActionButton.Style) -> some View {
+    private func actionButton(_ content: ButtonContent) -> some View {
         BigActionButton(
             title: content.title,
             systemImage: content.systemImage,
             accessibilityLabel: content.accessibilityLabel,
             accessibilityHint: content.accessibilityHint,
-            style: style,
             action: content.action
         )
         .disabled(!content.isEnabled)
@@ -225,7 +225,6 @@ private struct WriteSheet: View {
                     systemImage: "wave.3.right",
                     accessibilityLabel: "Écrire sur l'étiquette",
                     accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
-                    style: .filled,
                     action: confirm
                 )
                 .frame(height: 150)
