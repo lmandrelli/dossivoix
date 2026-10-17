@@ -2,9 +2,8 @@ import SwiftUI
 
 /// Très grand bouton lisible avec Dynamic Type, VoiceOver et l'inversion intelligente.
 ///
-/// Fond blanc, contour épais et texte noirs. Aucun aplat noir : avec l'inversion intelligente,
-/// le bouton devient noir avec un contour et un texte blancs, comme tout le reste de l'écran.
-/// (Un bouton noir deviendrait au contraire un bloc blanc éblouissant une fois inversé.)
+/// Fond « papier », contour épais et texte « encre » (voir Palette). Aucun aplat d'encre :
+/// avec l'inversion intelligente, il deviendrait un bloc blanc éblouissant.
 struct BigActionButton: View {
     let title: String
     let systemImage: String
@@ -14,6 +13,7 @@ struct BigActionButton: View {
     let action: () -> Void
 
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Button(action: action) {
@@ -22,11 +22,11 @@ struct BigActionButton: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.5)
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.black)
+                .foregroundStyle(palette.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding()
-                .background(.white, in: RoundedRectangle(cornerRadius: 28))
-                .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(.black, lineWidth: 6))
+                .background(palette.paper, in: RoundedRectangle(cornerRadius: 28))
+                .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(palette.ink, lineWidth: 6))
                 .opacity(isEnabled ? 1 : 0.3)
         }
         .buttonStyle(StillButtonStyle())
