@@ -28,12 +28,14 @@ struct ListeningPanel: View {
 
     private var panel: some View {
         HStack(spacing: 20) {
+            // Bulle blanche à contour noir (pas d'aplat noir, qui deviendrait blanc une fois inversé).
             SpeechBubble()
-                .fill(.black)
+                .fill(.white)
+                .overlay(SpeechBubble().stroke(.black, style: StrokeStyle(lineWidth: 4, lineJoin: .round)))
                 .frame(width: 132, height: 72)
                 .overlay {
                     WaveBars(isAnimated: !reduceMotion)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.black)
                         .frame(width: 92, height: 44)
                         .offset(y: -3)
                 }
@@ -92,15 +94,15 @@ struct SpeechBubble: Shape {
     func path(in rect: CGRect) -> Path {
         let bodyHeight = rect.height * 0.86
         let body = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: bodyHeight)
-        var path = Path(roundedRect: body, cornerRadius: bodyHeight / 2)
-        // Queue : petit triangle sous la bulle, côté gauche. Il part de l'intérieur de la bulle
-        // et il est tracé dans le même sens qu'elle (horaire) : la zone commune reste pleine
-        // au lieu de s'annuler au remplissage, ce qui laissait un fin trait blanc.
-        path.move(to: CGPoint(x: rect.minX + rect.width * 0.40, y: body.maxY - 10))
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.14, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.22, y: body.maxY - 10))
-        path.closeSubpath()
-        return path
+        let bubble = Path(roundedRect: body, cornerRadius: bodyHeight / 2)
+        // Queue : petit triangle sous la bulle, côté gauche, qui part de l'intérieur de la bulle.
+        var tail = Path()
+        tail.move(to: CGPoint(x: rect.minX + rect.width * 0.40, y: body.maxY - 10))
+        tail.addLine(to: CGPoint(x: rect.minX + rect.width * 0.14, y: rect.maxY))
+        tail.addLine(to: CGPoint(x: rect.minX + rect.width * 0.22, y: body.maxY - 10))
+        tail.closeSubpath()
+        // Fusion en une seule forme : contour continu, sans trait à la jonction.
+        return bubble.union(tail)
     }
 }
 
