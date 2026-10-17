@@ -19,7 +19,7 @@ final class ScriptedSpeechInput: SpeechInput {
     }
 
     func listen(_ kind: ListenKind) async -> ListenResult {
-        try? await Task.sleep(for: .milliseconds(600))
+        try? await Task.sleep(for: .milliseconds(2500)) // durée réaliste d'une réponse
         return answers.isEmpty ? .silence : answers.removeFirst()
     }
 

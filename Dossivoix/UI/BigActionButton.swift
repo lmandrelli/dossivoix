@@ -1,45 +1,52 @@
 import SwiftUI
 
-/// Très grand bouton à fort contraste, lisible avec Dynamic Type et VoiceOver.
+/// Très grand bouton en noir et blanc, lisible avec Dynamic Type, VoiceOver et l'inversion intelligente.
+/// - `.filled` : fond noir, texte blanc (action principale) ;
+/// - `.outlined` : fond blanc, contour épais et texte noirs (seconde action).
 struct BigActionButton: View {
+    enum Style {
+        case filled
+        case outlined
+    }
+
     let title: String
     let systemImage: String
     /// Libellé lu par VoiceOver (plus explicite que le titre affiché).
     let accessibilityLabel: String
     let accessibilityHint: String
-    let foreground: Color
-    let background: Color
+    let style: Style
     let action: () -> Void
 
     @Environment(\.isEnabled) private var isEnabled
+
+    private var foreground: Color { style == .filled ? .white : .black }
+    private var background: Color { style == .filled ? .black : .white }
 
     var body: some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
                 .font(.system(.largeTitle, weight: .heavy))
+                .lineLimit(2)
+                .minimumScaleFactor(0.5)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 150)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding()
                 .foregroundStyle(foreground)
                 .background(background, in: RoundedRectangle(cornerRadius: 28))
-                .overlay(
-                    // Bordure pour rester visible même sur un fond de même teinte.
-                    RoundedRectangle(cornerRadius: 28).strokeBorder(foreground, lineWidth: 3)
-                )
-                .opacity(isEnabled ? 1 : 0.4)
+                .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(.black, lineWidth: 5))
+                .opacity(isEnabled ? 1 : 0.3)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(StillButtonStyle())
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(accessibilityHint)
     }
 }
 
-/// Couleurs à fort contraste (rapport supérieur à 12:1 dans les deux cas).
-enum HighContrast {
-    /// Noir sur jaune, pour « Lire ».
-    static let readForeground = Color.black
-    static let readBackground = Color(red: 1.0, green: 0.85, blue: 0.0)
-    /// Blanc sur bleu nuit, pour « Écrire ».
-    static let writeForeground = Color.white
-    static let writeBackground = Color(red: 0.0, green: 0.12, blue: 0.38)
+/// Bouton sans animation : seul un léger assombrissement signale l'appui.
+struct StillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .brightness(configuration.isPressed ? -0.15 : 0)
+            .transaction { $0.animation = nil }
+    }
 }

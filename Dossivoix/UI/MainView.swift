@@ -2,36 +2,50 @@ import SwiftUI
 import DossivoixCore
 
 /// Écran principal : solution de secours si la voix ne suffit pas.
-/// Un message d'état en grand, et deux très grands boutons adaptés à l'étape du parcours :
-/// « Lire » / « Écrire », « C'est bon » / « Recommencer », ou « Remplacer » / « Annuler ».
+///
+/// Disposition figée : rien ne bouge ni ne change de taille d'un état à l'autre.
+/// - en haut, le message en grand, dans une zone de hauteur fixe ;
+/// - au milieu, deux très grands boutons toujours à la même place : seul leur texte change
+///   (« Lire » / « Écrire », « C'est bon » / « Recommencer », « Remplacer » / « Annuler ») ;
+/// - en bas, « Clavier » et « Arrêter », toujours présents (grisés quand inutiles) ;
+/// - tout en bas, une zone réservée au panneau « J'écoute ».
+/// Toujours en noir sur blanc : avec l'inversion intelligente, l'app apparaît en blanc sur noir.
 struct MainView: View {
     @Bindable var coordinator: FlowCoordinator
 
+    /// Hauteur réservée au panneau « J'écoute » (toujours réservée, même vide).
+    private static let listeningSlotHeight: CGFloat = 112
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
+            GeometryReader { geometry in
+                VStack(spacing: 16) {
                     Text(coordinator.statusMessage)
-                        .font(.system(.title, weight: .semibold))
+                        .font(.system(.title, weight: .bold))
+                        .foregroundStyle(.black)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, minHeight: 100)
+                        .minimumScaleFactor(0.5)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .frame(height: geometry.size.height * 0.24)
                         .accessibilityLabel("État : \(coordinator.statusMessage)")
 
-                    if coordinator.isListening {
-                        Label("J'écoute…", systemImage: "mic.fill")
-                            .font(.title2.bold())
-                            .foregroundStyle(.red)
-                            // Pas d'annonce VoiceOver : le signal sonore suffit et VoiceOver
-                            // ne doit pas parler pendant que le micro est ouvert.
-                            .accessibilityHidden(true)
-                    }
-
-                    bigButtons
+                    actionButton(primaryAction, style: .filled)
+                    actionButton(secondaryAction, style: .outlined)
 
                     secondaryButtons
+                        .frame(height: 60)
+
+                    Color.clear
+                        .frame(height: Self.listeningSlotHeight)
                 }
-                .padding()
+                .padding(.horizontal)
+                .padding(.top, 8)
             }
+            .overlay(alignment: .bottom) {
+                ListeningPanel(isVisible: coordinator.isListening)
+                    .frame(height: Self.listeningSlotHeight)
+            }
+            .background(Color.white)
             .navigationTitle(AppIdentity.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -54,6 +68,20 @@ struct MainView: View {
                 }
             }
         }
+        // Aucune animation implicite : les changements d'état sont instantanés.
+        .transaction { $0.animation = nil }
+    }
+
+    // MARK: - Contenu des grands boutons selon l'étape
+
+    /// Ce qu'affiche et fait un grand bouton.
+    private struct ButtonContent {
+        let title: String
+        let systemImage: String
+        let accessibilityLabel: String
+        let accessibilityHint: String
+        let isEnabled: Bool
+        let action: () -> Void
     }
 
     /// Vrai pendant une session NFC : rien d'autre n'est possible.
@@ -64,109 +92,93 @@ struct MainView: View {
         }
     }
 
-    // MARK: - Grands boutons
-
-    @ViewBuilder
-    private var bigButtons: some View {
+    private var primaryAction: ButtonContent {
         switch coordinator.state {
         case .confirmingName(let name, _, _):
-            BigActionButton(
-                title: "C'est bon",
-                systemImage: "checkmark",
-                accessibilityLabel: "C'est bon : \(name)",
-                accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
-                foreground: HighContrast.readForeground,
-                background: HighContrast.readBackground
-            ) {
-                coordinator.answer(.yes)
-            }
-            BigActionButton(
-                title: "Recommencer",
-                systemImage: "arrow.counterclockwise",
-                accessibilityLabel: "Recommencer",
-                accessibilityHint: "Permet de redire le nom du dossier.",
-                foreground: HighContrast.writeForeground,
-                background: HighContrast.writeBackground
-            ) {
-                coordinator.answer(.restart)
-            }
-
+            ButtonContent(title: "C'est bon", systemImage: "checkmark",
+                          accessibilityLabel: "C'est bon : \(name)",
+                          accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
+                          isEnabled: true) { coordinator.answer(.yes) }
         case .confirmingReplace(let name, _, _):
-            BigActionButton(
-                title: "Remplacer",
-                systemImage: "arrow.triangle.2.circlepath",
-                accessibilityLabel: "Remplacer par \(name)",
-                accessibilityHint: "Approchez ensuite à nouveau l'étiquette.",
-                foreground: HighContrast.readForeground,
-                background: HighContrast.readBackground
-            ) {
-                coordinator.answer(.yes)
-            }
-            BigActionButton(
-                title: "Annuler",
-                systemImage: "xmark",
-                accessibilityLabel: "Annuler",
-                accessibilityHint: "L'étiquette ne sera pas modifiée.",
-                foreground: HighContrast.writeForeground,
-                background: HighContrast.writeBackground
-            ) {
-                coordinator.answer(.cancel)
-            }
-
+            ButtonContent(title: "Remplacer", systemImage: "arrow.triangle.2.circlepath",
+                          accessibilityLabel: "Remplacer par \(name)",
+                          accessibilityHint: "Approchez ensuite à nouveau l'étiquette.",
+                          isEnabled: true) { coordinator.answer(.yes) }
         default:
-            BigActionButton(
-                title: "Lire",
-                systemImage: "wave.3.right",
-                accessibilityLabel: "Lire une étiquette",
-                accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
-                foreground: HighContrast.readForeground,
-                background: HighContrast.readBackground
-            ) {
-                coordinator.startReading()
-            }
-            .disabled(isUsingTag)
-
-            BigActionButton(
-                title: "Écrire",
-                systemImage: "square.and.pencil",
-                accessibilityLabel: "Écrire une étiquette",
-                accessibilityHint: "L'app vous demandera de dire le nom du dossier.",
-                foreground: HighContrast.writeForeground,
-                background: HighContrast.writeBackground
-            ) {
-                coordinator.startWriting()
-            }
-            .disabled(isUsingTag)
+            ButtonContent(title: "Lire", systemImage: "wave.3.right",
+                          accessibilityLabel: "Lire une étiquette",
+                          accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
+                          isEnabled: !isUsingTag) { coordinator.startReading() }
         }
     }
 
-    // MARK: - Boutons secondaires
+    private var secondaryAction: ButtonContent {
+        switch coordinator.state {
+        case .confirmingName:
+            ButtonContent(title: "Recommencer", systemImage: "arrow.counterclockwise",
+                          accessibilityLabel: "Recommencer",
+                          accessibilityHint: "Permet de redire le nom du dossier.",
+                          isEnabled: true) { coordinator.answer(.restart) }
+        case .confirmingReplace:
+            ButtonContent(title: "Annuler", systemImage: "xmark",
+                          accessibilityLabel: "Annuler",
+                          accessibilityHint: "L'étiquette ne sera pas modifiée.",
+                          isEnabled: true) { coordinator.answer(.cancel) }
+        default:
+            ButtonContent(title: "Écrire", systemImage: "square.and.pencil",
+                          accessibilityLabel: "Écrire une étiquette",
+                          accessibilityHint: "L'app vous demandera de dire le nom du dossier.",
+                          isEnabled: !isUsingTag) { coordinator.startWriting() }
+        }
+    }
+
+    private func actionButton(_ content: ButtonContent, style: BigActionButton.Style) -> some View {
+        BigActionButton(
+            title: content.title,
+            systemImage: content.systemImage,
+            accessibilityLabel: content.accessibilityLabel,
+            accessibilityHint: content.accessibilityHint,
+            style: style,
+            action: content.action
+        )
+        .disabled(!content.isEnabled)
+    }
+
+    // MARK: - Boutons secondaires (toujours présents)
 
     private var secondaryButtons: some View {
-        VStack(spacing: 16) {
-            Button {
+        HStack(spacing: 16) {
+            smallButton("Clavier", systemImage: "keyboard",
+                        accessibilityLabel: "Saisir le nom au clavier",
+                        isEnabled: !isUsingTag) {
                 coordinator.openKeyboardEntry(prefill: currentName)
-            } label: {
-                Label("Saisir le nom au clavier", systemImage: "keyboard")
-                    .font(.title3.bold())
-                    .frame(maxWidth: .infinity, minHeight: 56)
             }
-            .buttonStyle(.bordered)
-            .disabled(isUsingTag)
-
-            if coordinator.state != .idle && !isUsingTag {
-                Button {
-                    coordinator.cancel()
-                } label: {
-                    Label("Arrêter", systemImage: "stop.fill")
-                        .font(.title3.bold())
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .accessibilityHint("Arrête le parcours en cours.")
+            smallButton("Arrêter", systemImage: "stop.fill",
+                        accessibilityLabel: "Arrêter",
+                        isEnabled: coordinator.state != .idle && !isUsingTag) {
+                coordinator.cancel()
             }
         }
+    }
+
+    private func smallButton(
+        _ title: String, systemImage: String, accessibilityLabel: String,
+        isEnabled: Bool, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.title3.bold())
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.white, in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.black, lineWidth: 3))
+                .opacity(isEnabled ? 1 : 0.3)
+        }
+        .buttonStyle(StillButtonStyle())
+        .disabled(!isEnabled)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     /// Nom en cours de confirmation, pour pré-remplir la saisie au clavier.
@@ -201,7 +213,9 @@ private struct WriteSheet: View {
             VStack(spacing: 24) {
                 TextField("Nom du dossier", text: $name)
                     .font(.title)
-                    .textFieldStyle(.roundedBorder)
+                    .foregroundStyle(.black)
+                    .padding()
+                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(.black, lineWidth: 3))
                     .submitLabel(.done)
                     .focused($isFieldFocused)
                     .onSubmit(confirm)
@@ -211,15 +225,16 @@ private struct WriteSheet: View {
                     systemImage: "wave.3.right",
                     accessibilityLabel: "Écrire sur l'étiquette",
                     accessibilityHint: "Approchez ensuite le haut de l'iPhone de l'étiquette.",
-                    foreground: HighContrast.writeForeground,
-                    background: HighContrast.writeBackground,
+                    style: .filled,
                     action: confirm
                 )
+                .frame(height: 150)
                 .disabled(preparedName.isEmpty)
 
                 Spacer()
             }
             .padding()
+            .background(Color.white)
             .navigationTitle("Écrire une étiquette")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -248,4 +263,5 @@ private struct WriteSheet: View {
         feedback: SilentFeedback(),
         audioSession: SilentAudioSession()
     ))
+    .preferredColorScheme(.light)
 }
