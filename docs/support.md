@@ -6,8 +6,8 @@ title: Assistance – Dossivoix
 
 ## Démarrer
 
-1. Ouvrez Dossivoix une première fois et acceptez les autorisations (NFC, micro,
-   reconnaissance vocale).
+1. Ouvrez Dossivoix. Le micro et la reconnaissance vocale sont demandés à la première
+   écoute ; vous pouvez les refuser et utiliser le bouton **Clavier**.
 2. Dites à Siri : **« Lis l'étiquette avec Dossivoix »**, puis approchez le haut de
    l'iPhone de l'étiquette collée sur le dossier. Le nom du dossier est annoncé.
 3. Pour écrire une étiquette : **« Écris une étiquette avec Dossivoix »**, dites le nom
@@ -19,6 +19,12 @@ Autres phrases Siri : « Dossivoix, lis l'étiquette », « Lire un dossier avec
 
 Réponses comprises pendant les questions : *oui*, *non*, *recommencer*, *annuler*,
 *encore* (lire une autre étiquette), *écrire*.
+Pour confirmer un remplacement, répondez simplement **oui** ou **non**.
+Une phrase négative ou ambiguë ne vaut pas autorisation de remplacement.
+
+Après une confirmation, présentez de nouveau l'étiquette choisie. Dossivoix vérifie
+son contenu, pas son identité physique : deux étiquettes au contenu identique ne sont
+pas distinguées. N'approchez qu'une seule étiquette à la fois.
 
 ## Questions fréquentes
 
@@ -41,16 +47,20 @@ Articulez « Dossi-voix ». Vous pouvez aussi ouvrir l'app et utiliser les grand
 « Lire » et « Écrire ».
 
 **Les étiquettes de mon SmartVision sont-elles compatibles ?**
-Oui : Dossivoix lit et écrit le même format que le Kapsys SmartVision 2.
+Dossivoix reproduit le format relevé sur une étiquette du Kapsys SmartVision 2.
+Avant de modifier vos dossiers, vérifiez la lecture dans les deux sens avec une étiquette d'essai.
 
 **Une étiquette annonce « format non reconnu ».**
 Activez **Réglages → Dossivoix → Mode diagnostic**, puis dans Dossivoix ouvrez l'écran
 « Diagnostic » (en haut à droite), touchez « Partager ce rapport » et
-joignez-le à votre demande d'aide : il permettra d'ajouter ce format.
+joignez-le à votre demande d'aide : il permettra d'étudier ce format.
+Le rapport contient les données de l'étiquette ; utilisez une étiquette d'essai sans information confidentielle.
 
 ## Nous contacter
 
 [Ouvrir un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues)
 (un compte GitHub gratuit est nécessaire).
+Ces liens sont aussi disponibles dans l'app, via **À propos**. Les tickets sont publics :
+ne publiez pas d'informations personnelles ou confidentielles.
 
 Voir aussi la [politique de confidentialité](privacy.md).

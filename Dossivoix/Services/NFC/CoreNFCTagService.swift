@@ -20,6 +20,11 @@ final class CoreNFCTagService: NSObject {
     private var session: NFCNDEFReaderSession?
     private var job: Job?
 
+    func cancel() {
+        session?.invalidate()
+        job?.fail(.userCanceled)
+    }
+
     /// Ouvre une session NFC ; `body` s'exécute sur l'étiquette connectée et renvoie
     /// la valeur à rendre ainsi que le message de succès à afficher sur la feuille.
     /// Une `TagError` lancée par `body` termine la session avec le message d'erreur correspondant.
@@ -44,9 +49,11 @@ final class CoreNFCTagService: NSObject {
 
             job = Job(
                 operation: operation,
-                handle: { tag, session in
+                handle: { [weak self] tag, session in
                     do {
+                        guard session === self?.session else { return }
                         try await session.connect(to: tag)
+                        guard session === self?.session else { return }
                         let (value, sheetMessage) = try await body(tag)
                         session.alertMessage = sheetMessage
                         session.invalidate()

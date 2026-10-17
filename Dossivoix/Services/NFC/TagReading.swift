@@ -7,6 +7,8 @@ protocol TagReading: AnyObject {
     /// Ouvre la feuille NFC et renvoie les enregistrements de la première étiquette approchée.
     /// Une étiquette vide renvoie une liste vide (ce n'est pas une erreur).
     func readTag() async -> Result<[NDEFRecord], TagError>
+    /// Invalide la session en cours et libère son attente.
+    func cancel()
 }
 
 /// Écriture d'une étiquette NFC. Ne verrouille jamais l'étiquette.
@@ -26,6 +28,7 @@ protocol TagWriting: AnyObject {
 
 /// Lecteur et graveur simulés : résultats fixés à l'avance.
 final class FakeTagService: TagReading, TagWriting {
+    func cancel() {}
     var readResult: Result<[NDEFRecord], TagError>
     var writeResults: [Result<TagWriteOutcome, TagError>]
 

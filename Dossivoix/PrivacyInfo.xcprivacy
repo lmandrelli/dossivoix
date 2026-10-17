@@ -2,7 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Manifeste de confidentialité de Dossivoix.
-  L'app ne suit pas l'utilisatrice, ne collecte aucune donnée et n'envoie rien sur le réseau.
+  Aucune collecte par le développeur, aucun suivi publicitaire.
+  Le framework Speech peut transmettre l'audio à Apple pour la reconnaissance.
+  Le partage d'un diagnostic est déclenché et choisi par l'utilisatrice.
   API « à justification » utilisées :
   - UserDefaults (CA92.1) : lecture du réglage « Mode diagnostic » (Settings.bundle),
     propre à l'app et jamais partagé.

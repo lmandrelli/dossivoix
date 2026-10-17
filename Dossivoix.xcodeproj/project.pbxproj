@@ -8,19 +8,36 @@
 
 /* Begin PBXBuildFile section */
 		D0551F0A0000000000000001 /* DossivoixCore in Frameworks */ = {isa = PBXBuildFile; productRef = D0551F0A0000000000000020 /* DossivoixCore */; };
+		D0551F0A0000000000000030 /* DossivoixCore in Frameworks */ = {isa = PBXBuildFile; productRef = D0551F0A0000000000000040 /* DossivoixCore */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D0551F0A0000000000000039 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D0551F0A0000000000000010 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D0551F0A000000000000000C;
+			remoteInfo = Dossivoix;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		D0551F0A0000000000000002 /* Dossivoix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Dossivoix.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0551F0A0000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D0551F0A0000000000000004 /* Dossivoix.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Dossivoix.entitlements; sourceTree = "<group>"; };
 		D0551F0A0000000000000005 /* DossivoixCore */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = DossivoixCore; sourceTree = "<group>"; };
+		D0551F0A0000000000000031 /* DossivoixTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DossivoixTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D0551F0A0000000000000006 /* Dossivoix */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Dossivoix;
+			sourceTree = "<group>";
+		};
+		D0551F0A0000000000000032 /* DossivoixTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DossivoixTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +51,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D0551F0A0000000000000033 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0551F0A0000000000000030 /* DossivoixCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -41,6 +66,7 @@
 			isa = PBXGroup;
 			children = (
 				D0551F0A0000000000000006 /* Dossivoix */,
+				D0551F0A0000000000000032 /* DossivoixTests */,
 				D0551F0A0000000000000009 /* Config */,
 				D0551F0A000000000000000A /* Packages */,
 				D0551F0A000000000000000B /* Products */,
@@ -68,6 +94,7 @@
 			isa = PBXGroup;
 			children = (
 				D0551F0A0000000000000002 /* Dossivoix.app */,
+				D0551F0A0000000000000031 /* DossivoixTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -97,6 +124,30 @@
 			productName = Dossivoix;
 			productReference = D0551F0A0000000000000002 /* Dossivoix.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D0551F0A0000000000000034 /* DossivoixTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D0551F0A0000000000000035 /* Build configuration list for PBXNativeTarget "DossivoixTests" */;
+			buildPhases = (
+				D0551F0A0000000000000036 /* Sources */,
+				D0551F0A0000000000000033 /* Frameworks */,
+				D0551F0A0000000000000037 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D0551F0A0000000000000038 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D0551F0A0000000000000032 /* DossivoixTests */,
+			);
+			name = DossivoixTests;
+			packageProductDependencies = (
+				D0551F0A0000000000000040 /* DossivoixCore */,
+			);
+			productName = DossivoixTests;
+			productReference = D0551F0A0000000000000031 /* DossivoixTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -131,12 +182,20 @@
 			projectRoot = "";
 			targets = (
 				D0551F0A000000000000000C /* Dossivoix */,
+				D0551F0A0000000000000034 /* DossivoixTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		D0551F0A000000000000000F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D0551F0A0000000000000037 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -153,7 +212,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D0551F0A0000000000000036 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D0551F0A0000000000000038 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D0551F0A000000000000000C /* Dossivoix */;
+			targetProxy = D0551F0A0000000000000039 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D0551F0A0000000000000012 /* Debug */ = {
@@ -270,6 +344,36 @@
 			};
 			name = Release;
 		};
+		D0551F0A0000000000000041 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = work.lmandrelli.dossivoix.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Dossivoix.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Dossivoix";
+			};
+			name = Debug;
+		};
+		D0551F0A0000000000000042 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = work.lmandrelli.dossivoix.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Dossivoix.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Dossivoix";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -291,6 +395,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		D0551F0A0000000000000035 /* Build configuration list for PBXNativeTarget "DossivoixTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D0551F0A0000000000000041 /* Debug */,
+				D0551F0A0000000000000042 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -302,6 +415,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		D0551F0A0000000000000020 /* DossivoixCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DossivoixCore;
+		};
+		D0551F0A0000000000000040 /* DossivoixCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = DossivoixCore;
 		};

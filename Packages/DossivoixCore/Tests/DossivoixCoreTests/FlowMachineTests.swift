@@ -113,7 +113,7 @@ final class FlowMachineTests: XCTestCase {
         _ = send(.startWriting)
         XCTAssertEqual(send(.heard(.silence)), [.say(Phrases.didNotHearName, cue: nil), .listen(.name)])
         XCTAssertEqual(send(.heard(.silence)), [.say(Phrases.useScreen, cue: .error), .showTextEntry(prefill: nil)])
-        XCTAssertEqual(machine.state, .idle)
+        XCTAssertEqual(machine.state, .enteringName(target: .anyTag))
     }
 
     func testUnclearConfirmationRepromptsThenFallsBackWithName() {
@@ -223,6 +223,51 @@ final class FlowMachineTests: XCTestCase {
         _ = send(.readFinished(.failure(.timeout)))
         XCTAssertEqual(heard("écrire"), [.say(Phrases.askName, cue: nil), .listen(.name)])
         XCTAssertEqual(machine.state, .askingName(attempt: 1, target: .anyTag))
+    }
+
+    func testNegativeReplacementCannotStartWriting() {
+        for response in ["ne remplace pas", "je ne confirme pas", "pas correct", "surtout pas remplacer"] {
+            machine = FlowMachine()
+            reachReplaceQuestion()
+            let effects = heard(response)
+            XCTAssertFalse(effects.contains { if case .writeTag = $0 { return true }; return false }, response)
+            guard case .confirmingReplace = machine.state else { return XCTFail(response) }
+        }
+    }
+
+    func testRenameTargetSurvivesAutomaticKeyboardFallbacks() {
+        for duringConfirmation in [false, true] {
+            for unavailable in [false, true] {
+                machine = FlowMachine()
+                _ = send(.startReading)
+                _ = send(.readFinished(.success(smartVisionTag)))
+                _ = heard("écrire")
+                if duringConfirmation { _ = heard("banque") }
+                if unavailable {
+                    _ = send(.heard(.unavailable))
+                } else {
+                    _ = send(.heard(.silence))
+                    _ = send(.heard(.silence))
+                }
+                XCTAssertEqual(machine.state, .enteringName(target: .knownTag(expected: smartVisionTag, isSecondPass: false)))
+                XCTAssertEqual(send(.typedName("Banque")), [
+                    .writeTag(records: records("Banque"), expectedCurrent: smartVisionTag, isSecondPass: false)
+                ])
+            }
+        }
+    }
+
+    func testManualKeyboardPreservesReplacementTargetAndCancelClearsIt() {
+        reachReplaceQuestion()
+        _ = send(.requestTextEntry(prefill: "Banque"))
+        XCTAssertEqual(send(.typedName("Impôts")), [
+            .writeTag(records: records("Impôts"), expectedCurrent: smartVisionTag, isSecondPass: true)
+        ])
+        _ = send(.cancel)
+        _ = send(.requestTextEntry(prefill: nil))
+        XCTAssertEqual(send(.typedName("Nouveau")), [
+            .writeTag(records: records("Nouveau"), expectedCurrent: nil, isSecondPass: false)
+        ])
     }
 
     // MARK: - Divers

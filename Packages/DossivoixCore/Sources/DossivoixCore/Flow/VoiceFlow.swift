@@ -40,7 +40,7 @@ public enum ListenResult: Equatable, Sendable {
 public enum WriteTarget: Equatable, Sendable {
     /// N'importe quelle étiquette : 1er passage (confirmation demandée si elle contient déjà autre chose).
     case anyTag
-    /// Étiquette au contenu déjà connu : renommage après une lecture, ou 2e passage après confirmation.
+    /// Contenu déjà connu : renommage ou 2e passage. Ce n'est pas un identifiant matériel.
     case knownTag(expected: [NDEFRecord], isSecondPass: Bool)
 }
 
@@ -53,6 +53,8 @@ public enum FlowState: Equatable, Sendable {
     case offeringAfterRead(lastRead: [NDEFRecord]?)
     /// Dictée du nom (`attempt` : numéro de l'essai).
     case askingName(attempt: Int, target: WriteTarget)
+    /// Saisie au clavier, avec conservation de la cible du renommage/remplacement.
+    case enteringName(target: WriteTarget)
     /// « J'ai compris : … C'est bon ? »
     case confirmingName(name: String, attempt: Int, target: WriteTarget)
     /// Session NFC d'écriture en cours.
@@ -72,6 +74,7 @@ public enum FlowEvent: Equatable, Sendable {
     case startWriting
     /// Nom saisi au clavier (pas de confirmation orale : il est déjà écrit).
     case typedName(String)
+    case requestTextEntry(prefill: String?)
     /// Bouton « Annuler » de l'écran.
     case cancel
     case readFinished(Result<[NDEFRecord], TagError>)
@@ -129,6 +132,10 @@ public struct FlowMachine: Sendable {
             let name = FolderName.preparedForWriting(raw)
             guard !name.isEmpty else { return [] }
             return write(name, target: currentWriteTarget)
+
+        case .requestTextEntry(let prefill):
+            state = .enteringName(target: currentWriteTarget)
+            return [.showTextEntry(prefill: prefill)]
 
         case .cancel:
             guard state != .idle else { return [] }
@@ -204,11 +211,11 @@ public struct FlowMachine: Sendable {
             state = .confirmingName(name: name, attempt: 1, target: target)
             return [.say(Phrases.confirmName(name), cue: nil), .listen(.answer)]
         case .unavailable:
-            state = .idle
+            state = .enteringName(target: target)
             return [.say(Phrases.voiceUnavailable, cue: .error), .showTextEntry(prefill: nil)]
         case .text, .silence:
             guard attempt < Self.maxAttempts else {
-                state = .idle
+                state = .enteringName(target: target)
                 return [.say(Phrases.useScreen, cue: .error), .showTextEntry(prefill: nil)]
             }
             state = .askingName(attempt: attempt + 1, target: target)
@@ -244,7 +251,7 @@ public struct FlowMachine: Sendable {
                 return [.say(Phrases.writeCanceled, cue: nil)]
             default:
                 guard micAvailable, attempt < Self.maxAttempts else {
-                    state = .idle
+                    state = .enteringName(target: target)
                     let message = micAvailable ? Phrases.useScreen : Phrases.voiceUnavailable
                     return [.say(message, cue: .error), .showTextEntry(prefill: name)]
                 }
@@ -291,7 +298,7 @@ public struct FlowMachine: Sendable {
                 return []
             }
 
-        case .idle, .reading, .askingName, .writing:
+        case .idle, .reading, .askingName, .enteringName, .writing:
             return []
         }
     }
@@ -299,7 +306,8 @@ public struct FlowMachine: Sendable {
     // MARK: Écriture
 
     /// Renommer l'étiquette qui vient d'être lue : pas de nouvelle demande de remplacement,
-    /// mais l'écriture vérifie que c'est toujours la même étiquette.
+    /// mais l'écriture vérifie que le contenu est toujours identique.
+    /// Deux étiquettes au contenu identique ne peuvent pas être distinguées.
     private mutating func rename(_ lastRead: [NDEFRecord]?) -> [FlowEffect] {
         guard let lastRead else {
             return askName(target: .anyTag, intro: Phrases.askName)
@@ -365,8 +373,11 @@ public struct FlowMachine: Sendable {
     /// Cible d'écriture en cours (pour un nom saisi au clavier pendant un parcours).
     private var currentWriteTarget: WriteTarget {
         switch state {
-        case .askingName(_, let target), .confirmingName(_, _, let target):
+        case .askingName(_, let target), .confirmingName(_, _, let target),
+             .enteringName(let target), .offeringRetry(_, let target):
             return target
+        case .confirmingReplace(_, let seen, _):
+            return .knownTag(expected: seen, isSecondPass: true)
         default:
             return .anyTag
         }
