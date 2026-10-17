@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Dos du dossier, avec son onglet -->
-  <rect x="127" y="282" width="240" height="120" rx="32" fill="#D9A800"/>
-  <rect x="127" y="342" width="480" height="400" rx="36" fill="#D9A800"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><g transform="translate(512 512) scale(1.0000) translate(-282.2 -162.5)"><rect x="0.0" y="0.0" width="230.0" height="110.0" rx="34.0" fill="#E3A900"/><rect x="0.0" y="50.0" width="500.0" height="380.0" rx="44.0" fill="#E3A900"/></g></svg>
