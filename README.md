@@ -304,7 +304,9 @@ But : vérifier que les étiquettes passent d'un appareil à l'autre dans les de
 Nom prévu : **Dossivoix – Étiquettes NFC vocales**. App gratuite, développeur particulier
 (statut **non-commerçant** à déclarer dans App Store Connect pour l'UE, au titre du DSA).
 
-- [ ] **Icône** de l'app : à ajouter dans `Dossivoix/Assets.xcassets/AppIcon` (1024 × 1024, sans transparence).
+- [x] **Icône** Liquid Glass : `Dossivoix/AppIcon.icon` (dossier jaune et ondes sonores sur bleu nuit),
+      modifiable dans **Icon Composer** (Xcode → Open Developer Tool). Calques SVG dans
+      `AppIcon.icon/Assets/`. Xcode génère seul les versions plates pour iOS 17 à 25.
 - [ ] Captures d'écran iPhone (6,9" et 6,5"), en français.
 - [ ] Activer **GitHub Pages** : Settings → Pages → *Deploy from a branch* → `main` / `docs`.
       URLs : `https://lmandrelli.github.io/dossivoix/privacy` et `/support`.
