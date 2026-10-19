@@ -28,6 +28,11 @@ pas distinguées. N'approchez qu'une seule étiquette à la fois.
 
 ## Questions fréquentes
 
+**La voix est robotique.**
+Téléchargez une voix française de meilleure qualité, gratuite : Réglages → Accessibilité →
+Contenu énoncé → Voix → Français, puis choisissez une voix « Améliorée » ou « Premium ».
+Dossivoix l'utilise automatiquement. Avec VoiceOver actif, c'est la voix de VoiceOver qui est utilisée.
+
 **L'étiquette n'est pas détectée.**
 Approchez le *haut* de l'iPhone (près de l'appareil photo), à un ou deux centimètres,
 et gardez-le immobile une seconde. Les coques épaisses ou métalliques gênent la lecture.

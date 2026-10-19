@@ -2,7 +2,10 @@ import AVFoundation
 
 /// Synthèse vocale de l'app (AVSpeechSynthesizer), en français.
 ///
-/// - Voix : voix française par défaut du système, débit par défaut.
+/// - Voix : la meilleure voix française installée sur l'iPhone (premium, sinon améliorée,
+///   sinon la voix par défaut), débit par défaut. Les voix améliorées et premium, bien plus
+///   naturelles, se téléchargent gratuitement dans Réglages → Accessibilité → Contenu énoncé
+///   → Voix → Français ; une app ne peut pas les télécharger elle-même.
 /// - Avec VoiceOver : `prefersAssistiveTechnologySettings` reprend la voix et le débit
 ///   réglés dans VoiceOver, pour que l'app « parle comme » VoiceOver.
 @MainActor
@@ -25,7 +28,7 @@ final class SynthesizerSpeechOutput: NSObject, SpeechOutput {
     func speak(_ text: String) async {
         stop()
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: Self.language)
+        utterance.voice = Self.bestVoice()
         utterance.prefersAssistiveTechnologySettings = true
 
         await withCheckedContinuation { continuation in
@@ -33,6 +36,26 @@ final class SynthesizerSpeechOutput: NSObject, SpeechOutput {
             self.currentUtterance = ObjectIdentifier(utterance)
             synthesizer.speak(utterance)
         }
+    }
+
+    /// Meilleure voix française installée : premium, sinon améliorée, sinon la voix par défaut.
+    /// Recherchée à chaque phrase, pour profiter d'une voix téléchargée pendant que l'app tourne.
+    /// Les voix « fantaisie » et la Voix personnelle sont écartées.
+    static func bestVoice() -> AVSpeechSynthesisVoice? {
+        let defaultVoice = AVSpeechSynthesisVoice(language: language)
+        let candidates = AVSpeechSynthesisVoice.speechVoices().filter {
+            $0.language == language
+                && !$0.voiceTraits.contains(.isNoveltyVoice)
+                && !$0.voiceTraits.contains(.isPersonalVoice)
+        }
+        for quality in [AVSpeechSynthesisVoiceQuality.premium, .enhanced] {
+            let matches = candidates.filter { $0.quality == quality }
+            // À qualité égale, on garde la voix par défaut du système si elle en fait partie.
+            if let voice = matches.first(where: { $0.identifier == defaultVoice?.identifier }) ?? matches.first {
+                return voice
+            }
+        }
+        return defaultVoice
     }
 
     func stop() {
