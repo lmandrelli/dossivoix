@@ -227,8 +227,14 @@ Choisir un simulateur installé. Ces tests ne remplacent pas les essais NFC, Sir
 | Délais d'écoute (début, silence, durée max) | `ListenKind.timing` |
 | Nombre d'essais avant renvoi vers l'écran | `FlowMachine.maxAttempts` |
 | Cohabitation avec VoiceOver | `VoiceSettings` (`AdaptiveSpeechOutput.swift`) |
+| Choix de la voix (meilleure voix française installée) | `SynthesizerSpeechOutput.bestVoice()` |
 | Mode diagnostic (Réglages d'iOS) | `Dossivoix/Settings.bundle/Root.plist`, clé `diagnosticModeEnabled` |
 | Sons « j'écoute », succès, erreur | `FeedbackCue.notes` |
+
+**Voix plus naturelle** : l'app utilise la meilleure voix française installée (premium, sinon
+améliorée, sinon la voix par défaut, assez robotique). Sur l'iPhone de l'utilisatrice, télécharger
+une fois une voix française **améliorée** ou **premium** : Réglages → Accessibilité → Contenu
+énoncé → Voix → Français. C'est gratuit et fonctionne ensuite hors ligne.
 
 **VoiceOver** : par défaut, l'app parle elle-même avec la voix et le débit de VoiceOver.
 La fin de chaque phrase est alors connue avec certitude, ce qui permet d'enchaîner
