@@ -63,6 +63,9 @@ Le rapport contient les données de l'étiquette ; utilisez une étiquette d'ess
 
 ## Nous contacter
 
+Pour obtenir de l'aide sans compte GitHub, écrivez à
+[luca.mandrelli@icloud.com](mailto:luca.mandrelli@icloud.com).
+
 [Ouvrir un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues)
 (un compte GitHub gratuit est nécessaire).
 Ces liens sont aussi disponibles dans l'app, via **À propos**. Les tickets sont publics :
