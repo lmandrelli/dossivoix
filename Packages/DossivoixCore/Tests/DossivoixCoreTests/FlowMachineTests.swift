@@ -19,17 +19,15 @@ final class FlowMachineTests: XCTestCase {
 
     // MARK: - Lecture
 
-    func testReadAnnouncesNameThenOffersShortChoice() {
+    func testReadAnnouncesNameAndStops() {
         XCTAssertEqual(send(.startReading), [.readTag])
         XCTAssertEqual(machine.state, .reading)
 
         XCTAssertEqual(send(.readFinished(.success(smartVisionTag))), [
             .recordDiagnostic(smartVisionTag),
             .say("Dossier panneau solaire", cue: .success),
-            .say(Phrases.offerAfterRead, cue: nil),
-            .listen(.answer),
         ])
-        XCTAssertEqual(machine.state, .offeringAfterRead(lastRead: smartVisionTag))
+        XCTAssertEqual(machine.state, .idle)
     }
 
     func testNoAnswerAfterReadDoesNothingMore() {
@@ -42,16 +40,17 @@ final class FlowMachineTests: XCTestCase {
     func testEncoreReadsAgain() {
         _ = send(.startReading)
         _ = send(.readFinished(.success(smartVisionTag)))
+        _ = send(.resumeVoice)
         XCTAssertEqual(heard("Encore"), [.readTag])
         XCTAssertEqual(machine.state, .reading)
     }
 
-    func testReadErrorIsAnnouncedAndStillOffersChoice() {
+    func testReadErrorIsAnnouncedAndStops() {
         _ = send(.startReading)
         let effects = send(.readFinished(.failure(.tagRemoved)))
         XCTAssertEqual(effects.first, .say(Phrases.message(for: .tagRemoved, during: .reading), cue: .error))
-        XCTAssertEqual(effects.last, .listen(.answer))
-        XCTAssertEqual(machine.state, .offeringAfterRead(lastRead: nil))
+        XCTAssertEqual(effects.count, 1)
+        XCTAssertEqual(machine.state, .idle)
     }
 
     func testReadCanceledOrUnavailableEnds() {
@@ -73,6 +72,7 @@ final class FlowMachineTests: XCTestCase {
             machine = FlowMachine()
             _ = send(.startReading)
             _ = send(.readFinished(.success(current)))
+            _ = send(.resumeVoice)
             _ = heard("écrire")
             _ = heard("assurance")
             let effects = heard("oui")
@@ -109,12 +109,10 @@ final class FlowMachineTests: XCTestCase {
 
         XCTAssertEqual(send(.writeFinished(.success(.written(previous: [])))), [
             .say("Étiquette écrite : Dossier panneau solaire.", cue: .success),
-            .say(Phrases.offerAnotherWrite, cue: nil),
-            .listen(.answer),
         ])
-        XCTAssertEqual(machine.state, .offeringAnotherWrite)
+        XCTAssertEqual(machine.state, .idle)
 
-        XCTAssertEqual(heard("oui"), [.say(Phrases.askName, cue: nil), .listen(.name)])
+        XCTAssertEqual(heard("oui"), [])
     }
 
     func testNoOrRestartRelaunchesDictation() {
@@ -126,24 +124,27 @@ final class FlowMachineTests: XCTestCase {
         if case .askingName = machine.state {} else { XCTFail("Dictée attendue") }
     }
 
-    func testCancelDuringConfirmation() {
+    func testSpokenCancelDuringConfirmationOnlyStopsVoice() {
         _ = send(.startWriting)
         _ = heard("banque")
-        XCTAssertEqual(heard("Annuler"), [.say(Phrases.writeCanceled, cue: nil)])
-        XCTAssertEqual(machine.state, .idle)
+        XCTAssertEqual(heard("Annuler"), [.say(Phrases.voiceStopped, cue: nil)])
+        XCTAssertEqual(machine.state, .confirmingName(name: "Banque", attempt: 1, target: .anyTag))
     }
 
-    func testSayingCancelInsteadOfName() {
+    func testSpokenCancelDuringDictationKeepsDraft() {
         _ = send(.startWriting)
-        XCTAssertEqual(heard("Annuler."), [.say(Phrases.writeCanceled, cue: nil)])
-        XCTAssertEqual(machine.state, .idle)
+        XCTAssertEqual(heard("Annuler."), [.say(Phrases.voiceStoppedDraftKept, cue: nil)])
+        XCTAssertEqual(machine.state, .pausedDictation(text: "", target: .anyTag))
+        _ = send(.resumeVoice)
+        XCTAssertEqual(send(.heard(.stopped("Factures"))), [.say(Phrases.voiceStoppedDraftKept, cue: nil)])
+        XCTAssertEqual(machine.state, .pausedDictation(text: "Factures", target: .anyTag))
     }
 
-    func testSilentDictationRetriesThenFallsBackToKeyboard() {
+    func testSilentDictationWaitsForVoiceButton() {
         _ = send(.startWriting)
-        XCTAssertEqual(send(.heard(.silence)), [.say(Phrases.didNotHearName, cue: nil), .listen(.name)])
-        XCTAssertEqual(send(.heard(.silence)), [.say(Phrases.useScreen, cue: .error), .showTextEntry(prefill: nil)])
-        XCTAssertEqual(machine.state, .enteringName(target: .anyTag))
+        XCTAssertEqual(send(.heard(.silence)), [.say(Phrases.didNotHearNameRetry, cue: nil), .listen(.name)])
+        XCTAssertEqual(send(.heard(.silence)), [.say(Phrases.didNotHearName, cue: .error)])
+        XCTAssertEqual(machine.state, .pausedDictation(text: "", target: .anyTag))
     }
 
     func testUnclearConfirmationRepromptsThenFallsBackWithName() {
@@ -151,31 +152,25 @@ final class FlowMachineTests: XCTestCase {
         _ = heard("banque")
         let reprompt = heard("euh")
         XCTAssertEqual(reprompt.last, .listen(.answer))
-        XCTAssertEqual(heard("hmm"), [.say(Phrases.useScreen, cue: .error), .showTextEntry(prefill: "Banque")])
+        XCTAssertEqual(heard("hmm"), [.say(Phrases.useScreen, cue: .error)])
     }
 
-    func testMicrophoneUnavailableFallsBackToKeyboard() {
+    func testMicrophoneUnavailableWaitsForVoiceButton() {
         _ = send(.startWriting)
         XCTAssertEqual(send(.heard(.unavailable)),
-                       [.say(Phrases.voiceUnavailable, cue: .error), .showTextEntry(prefill: nil)])
+                       [.say(Phrases.voiceUnavailable, cue: .error)])
     }
 
     func testTooLongNameAsksForShorterOne() {
         _ = send(.startWriting)
         _ = heard(String(repeating: "a", count: 120))
         let effects = heard("oui")
-        XCTAssertEqual(effects.last, .listen(.name))
+        XCTAssertEqual(effects.last, .listen(.answer))
         if case .say(let text, .error) = effects.first {
-            XCTAssertTrue(text.hasSuffix(Phrases.askShorterName))
+            XCTAssertTrue(text.hasSuffix(Phrases.shortenOrEdit))
         } else {
             XCTFail("Message d'erreur attendu")
         }
-    }
-
-    func testTypedNameWritesWithoutVoiceConfirmation() {
-        XCTAssertEqual(send(.typedName("  banque ")), [
-            .writeTag(records: records("Banque"), expectedCurrent: nil, isSecondPass: false),
-        ])
     }
 
     // MARK: - Remplacement
@@ -221,17 +216,16 @@ final class FlowMachineTests: XCTestCase {
         XCTAssertEqual(heard("hmm"), [.say(Phrases.useScreenButtons, cue: .error)])
         // Les boutons restent utilisables.
         XCTAssertEqual(send(.heard(.silence)), [])
-        XCTAssertEqual(send(.screenAnswer(.cancel)), [.say(Phrases.writeCanceledTagUnchanged, cue: nil)])
+        XCTAssertEqual(send(.screenAnswer(.no)), [.say(Phrases.writeCanceledTagUnchanged, cue: nil)])
     }
 
     func testDifferentTagOnSecondPassOffersRetry() {
         reachReplaceQuestion()
         _ = heard("oui")
         let effects = send(.writeFinished(.failure(.differentTag)))
-        XCTAssertEqual(effects.last, .listen(.answer))
-        XCTAssertEqual(heard("encore"), [
-            .writeTag(records: records("Banque"), expectedCurrent: smartVisionTag, isSecondPass: true),
-        ])
+        XCTAssertEqual(effects, [.say(Phrases.message(for: .differentTag, during: .writing), cue: .error)])
+        XCTAssertEqual(machine.state, .idle)
+        XCTAssertEqual(heard("encore"), [])
     }
 
     // MARK: - Renommage après lecture
@@ -239,8 +233,9 @@ final class FlowMachineTests: XCTestCase {
     func testWriteAfterReadRenamesTheSameTag() {
         _ = send(.startReading)
         _ = send(.readFinished(.success(smartVisionTag)))
+        _ = send(.resumeVoice)
         XCTAssertEqual(heard("écrire"), [
-            .say("Dites le nouveau nom pour : Dossier panneau solaire.", cue: nil), .listen(.name),
+            .say(Phrases.askNewName(for: "Dossier panneau solaire"), cue: nil), .listen(.name),
         ])
         _ = heard("panneaux solaires")
         XCTAssertEqual(heard("oui"), [
@@ -251,6 +246,7 @@ final class FlowMachineTests: XCTestCase {
     func testWriteAfterFailedReadIsANormalWrite() {
         _ = send(.startReading)
         _ = send(.readFinished(.failure(.timeout)))
+        _ = send(.resumeVoice)
         XCTAssertEqual(heard("écrire"), [.say(Phrases.askName, cue: nil), .listen(.name)])
         XCTAssertEqual(machine.state, .askingName(attempt: 1, target: .anyTag))
     }
@@ -265,12 +261,13 @@ final class FlowMachineTests: XCTestCase {
         }
     }
 
-    func testRenameTargetSurvivesAutomaticKeyboardFallbacks() {
+    func testRenameTargetSurvivesVoiceFailures() {
         for duringConfirmation in [false, true] {
             for unavailable in [false, true] {
                 machine = FlowMachine()
                 _ = send(.startReading)
                 _ = send(.readFinished(.success(smartVisionTag)))
+                _ = send(.resumeVoice)
                 _ = heard("écrire")
                 if duringConfirmation { _ = heard("banque") }
                 if unavailable {
@@ -279,39 +276,33 @@ final class FlowMachineTests: XCTestCase {
                     _ = send(.heard(.silence))
                     _ = send(.heard(.silence))
                 }
-                XCTAssertEqual(machine.state, .enteringName(target: .knownTag(expected: smartVisionTag, isSecondPass: false)))
-                XCTAssertEqual(send(.typedName("Banque")), [
+                if duringConfirmation {
+                    XCTAssertEqual(machine.state, .confirmingName(name: "Banque", attempt: 3, target: .knownTag(expected: smartVisionTag, isSecondPass: false)))
+                } else {
+                    XCTAssertEqual(machine.state, .pausedDictation(text: "", target: .knownTag(expected: smartVisionTag, isSecondPass: false)))
+                }
+                if !duringConfirmation {
+                    _ = send(.resumeVoice)
+                    _ = send(.heard(.dictated("Banque")))
+                }
+                XCTAssertEqual(send(.screenAnswer(.yes)), [
                     .writeTag(records: records("Banque"), expectedCurrent: smartVisionTag, isSecondPass: false)
                 ])
             }
         }
     }
 
-    func testManualKeyboardPreservesReplacementTargetAndCancelClearsIt() {
-        reachReplaceQuestion()
-        _ = send(.requestTextEntry(prefill: "Banque"))
-        XCTAssertEqual(send(.typedName("Impôts")), [
-            .say(Phrases.askReplace(existing: TagDecoder.decode(smartVisionTag), newName: "Impôts"), cue: nil),
-            .listen(.answer),
-        ])
-        XCTAssertEqual(machine.state, .confirmingReplace(name: "Impôts", seen: smartVisionTag, attempt: 1))
-        XCTAssertEqual(send(.screenAnswer(.yes)), [
-            .writeTag(records: records("Impôts"), expectedCurrent: smartVisionTag, isSecondPass: true)
-        ])
-        _ = send(.cancel)
-        _ = send(.requestTextEntry(prefill: nil))
-        XCTAssertEqual(send(.typedName("Nouveau")), [
-            .writeTag(records: records("Nouveau"), expectedCurrent: nil, isSecondPass: false)
-        ])
-    }
-
     // MARK: - Divers
 
-    func testScreenCancel() {
+    func testAbandonWritingClearsDraftOnlyWhenWriting() {
         _ = send(.startWriting)
-        XCTAssertEqual(send(.cancel), [.say(Phrases.stopped, cue: nil)])
+        _ = send(.heard(.paused("")))
+        _ = send(.resumeVoice)
+        _ = send(.stopVoice(partial: "Brouillon"))
+        XCTAssertEqual(send(.abandonWriting), [.say(Phrases.writeCanceled, cue: nil)])
         XCTAssertEqual(machine.state, .idle)
-        XCTAssertEqual(send(.cancel), [])
+        XCTAssertEqual(machine.dictationDraft, "")
+        XCTAssertEqual(send(.abandonWriting), [])
     }
 
     func testOutOfPlaceEventsAreIgnored() {

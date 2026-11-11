@@ -6,11 +6,11 @@ import DossivoixCore
 @MainActor
 protocol SpeechRecognitionSession: AnyObject {
     var isAvailable: Bool { get }
-    func start(_ kind: ListenKind, receive: @escaping @MainActor (String?, Bool, Bool) -> Void) throws
+    func start(_ kind: ListenKind, receive: @escaping @MainActor (String?, Bool, Bool, SpeechUtterance?) -> Void) throws
     func stop()
 }
 
-/// Écoutes courtes en français. Chaque écoute possède une génération : ni les autorisations,
+/// Écoutes bornées en français. Chaque écoute possède une génération : ni les autorisations,
 /// ni les callbacks, ni les timers d'une ancienne écoute ne peuvent agir sur la suivante.
 @MainActor
 final class SpeechRecognitionInput: SpeechInput {
@@ -20,12 +20,23 @@ final class SpeechRecognitionInput: SpeechInput {
     private var generation = 0
     private var continuation: CheckedContinuation<ListenResult, Never>?
     private var latestText = ""
+    private var transcript = DictationTranscript()
+    private var kind: ListenKind = .answer
+    private let timingOverride: ListenTiming?
+    var currentText: String { DictationCommand.content(latestText) }
+
+    func finishDictation() {
+        guard kind == .name, continuation != nil else { return }
+        finish(.dictated(currentText))
+    }
+
     private var silenceTimeout: Double = 1
     private var silenceTimer: Task<Void, Never>?
     private var deadlineTimer: Task<Void, Never>?
 
     init(
         session: SpeechRecognitionSession? = nil,
+        timingOverride: ListenTiming? = nil,
         authorizeSpeech: @escaping @MainActor () async -> Bool = {
             await withCheckedContinuation { continuation in
                 SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0 == .authorized) }
@@ -36,11 +47,12 @@ final class SpeechRecognitionInput: SpeechInput {
         }
     ) {
         self.session = session ?? AppleSpeechRecognitionSession()
+        self.timingOverride = timingOverride
         self.authorizeSpeech = authorizeSpeech
         self.authorizeMicrophone = authorizeMicrophone
     }
 
-    func listen(_ kind: ListenKind) async -> ListenResult {
+    func listen(_ kind: ListenKind, onReady: @escaping @MainActor () async -> Void) async -> ListenResult {
         cancel()
         let current = generation
         return await withTaskCancellationHandler {
@@ -52,14 +64,19 @@ final class SpeechRecognitionInput: SpeechInput {
             guard current == generation, !Task.isCancelled else { return .silence }
             guard microphoneAllowed, session.isAvailable else { return .unavailable }
 
+            await onReady()
+            guard current == generation, !Task.isCancelled else { return .silence }
+
             return await withCheckedContinuation { continuation in
                 self.continuation = continuation
                 latestText = ""
-                let timing = kind.timing
+                transcript = DictationTranscript()
+                self.kind = kind
+                let timing = timingOverride ?? kind.timing
                 silenceTimeout = timing.silenceTimeout
                 do {
-                    try session.start(kind) { [weak self] text, isFinal, failed in
-                        self?.received(text: text, isFinal: isFinal, failed: failed, generation: current)
+                    try session.start(kind) { [weak self] text, isFinal, failed, utterance in
+                        self?.received(text: text, isFinal: isFinal, failed: failed, utterance: utterance, generation: current)
                     }
                     guard current == generation else { return }
                     silenceTimer = timer(after: timing.initialTimeout, generation: current)
@@ -80,14 +97,33 @@ final class SpeechRecognitionInput: SpeechInput {
 
     func cancel() { finish(.silence) }
 
-    private func received(text: String?, isFinal: Bool, failed: Bool, generation current: Int) {
+    private func received(text: String?, isFinal: Bool, failed: Bool, utterance: SpeechUtterance?, generation current: Int) {
         guard current == generation, continuation != nil else { return }
-        if let text, !text.isEmpty, text != latestText {
+        let combined: String?
+        if kind == .name, let text, !text.isEmpty {
+            combined = transcript.receive(text, utterance: utterance)
+        } else { combined = text }
+        if let text = combined, !text.isEmpty, text != latestText {
             latestText = text
             silenceTimer?.cancel()
             silenceTimer = timer(after: silenceTimeout, generation: current)
+            if kind == .name, DictationCommand.action(in: text) != nil {
+                silenceTimer?.cancel()
+                // Une hypothèse partielle peut être corrigée : attendre sa stabilité.
+                silenceTimer = Task { [weak self] in
+                    do { try await Task.sleep(for: .seconds(1.5)) } catch { return }
+                    guard let self, current == self.generation else { return }
+                    self.finishCommand()
+                }
+            }
         }
-        if isFinal || failed { finishWithLatestText() }
+        if isFinal || failed {
+            if kind == .name {
+                // Une erreur ne valide jamais une commande issue d'une hypothèse partielle.
+                if !failed, finishCommand() { return }
+                finish(.paused(currentText))
+            } else { finishWithLatestText() }
+        }
     }
 
     private func timer(after seconds: Double, generation current: Int) -> Task<Void, Never> {
@@ -98,8 +134,19 @@ final class SpeechRecognitionInput: SpeechInput {
         }
     }
 
+    @discardableResult
+    private func finishCommand() -> Bool {
+        switch DictationCommand.action(in: latestText) {
+        case .finish(let text): finish(.dictated(text))
+        case .cancel(let text): finish(.stopped(text))
+        case nil: return false
+        }
+        return true
+    }
+
     private func finishWithLatestText() {
-        finish(latestText.isEmpty ? .silence : .text(latestText))
+        if kind == .name { finish(.paused(currentText)) }
+        else { finish(latestText.isEmpty ? .silence : .text(latestText)) }
     }
 
     private func finish(_ result: ListenResult) {
@@ -113,6 +160,7 @@ final class SpeechRecognitionInput: SpeechInput {
         deadlineTimer = nil
         session.stop()
         latestText = ""
+        transcript = DictationTranscript()
         waiting?.resume(returning: result)
     }
 }
@@ -130,7 +178,7 @@ private final class AppleSpeechRecognitionSession: SpeechRecognitionSession {
 
     var isAvailable: Bool { recognizer?.isAvailable == true }
 
-    func start(_ kind: ListenKind, receive: @escaping @MainActor (String?, Bool, Bool) -> Void) throws {
+    func start(_ kind: ListenKind, receive: @escaping @MainActor (String?, Bool, Bool, SpeechUtterance?) -> Void) throws {
         guard let recognizer else { throw Unavailable() }
         let request = SFSpeechAudioBufferRecognitionRequest()
         self.request = request
@@ -140,6 +188,7 @@ private final class AppleSpeechRecognitionSession: SpeechRecognitionSession {
         switch kind {
         case .name:
             request.taskHint = .dictation
+            request.contextualStrings = ["terminer la dictée", "annuler la dictée", "texte littéral"]
         case .answer:
             request.taskHint = .confirmation
             request.contextualStrings = ["oui", "non", "recommencer", "annuler", "encore", "écrire", "remplacer"]
@@ -156,7 +205,17 @@ private final class AppleSpeechRecognitionSession: SpeechRecognitionSession {
             let text = result?.bestTranscription.formattedString
             let isFinal = result?.isFinal ?? false
             let failed = error != nil
-            Task { @MainActor in receive(text, isFinal, failed) }
+            let metadata = result?.speechRecognitionMetadata
+            let utterance: SpeechUtterance?
+            if let metadata, metadata.speechDuration > 0 {
+                utterance = SpeechUtterance(start: metadata.speechStartTimestamp,
+                    end: metadata.speechStartTimestamp + metadata.speechDuration, isComplete: true)
+            } else if let segments = result?.bestTranscription.segments,
+                      let first = segments.first, let last = segments.last, last.duration > 0 {
+                utterance = SpeechUtterance(start: first.timestamp,
+                    end: last.timestamp + last.duration, isComplete: false)
+            } else { utterance = nil }
+            Task { @MainActor in receive(text, isFinal, failed, utterance) }
         }
     }
 

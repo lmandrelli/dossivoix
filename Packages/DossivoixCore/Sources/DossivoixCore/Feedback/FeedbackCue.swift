@@ -17,6 +17,8 @@ public struct Note: Equatable, Sendable {
 public enum FeedbackCue: Sendable, CaseIterable {
     /// « J'écoute » : deux notes brèves montantes, juste avant d'ouvrir le micro.
     case listening
+    /// Fin de l’écoute : deux notes brèves descendantes.
+    case listeningEnded
     /// Succès : trois notes montantes.
     case success
     /// Erreur : deux notes graves descendantes.
@@ -26,6 +28,8 @@ public enum FeedbackCue: Sendable, CaseIterable {
         switch self {
         case .listening:
             [Note(587, 0.08), Note(880, 0.10)]
+        case .listeningEnded:
+            [Note(880, 0.07), Note(587, 0.09)]
         case .success:
             [Note(660, 0.09), Note(880, 0.09), Note(1320, 0.18)]
         case .error:

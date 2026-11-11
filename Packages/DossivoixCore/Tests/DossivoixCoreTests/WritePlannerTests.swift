@@ -107,6 +107,6 @@ final class WritePhrasesTests: XCTestCase {
     func testNameTooLong() {
         let check = CapacityCheck(folderName: String(repeating: "a", count: 113))
         XCTAssertEqual(Phrases.nameTooLong(check),
-                       "Ce nom est trop long pour une étiquette. Raccourcissez-le d'environ 3 lettres.")
+                       "Ce texte est trop long pour cette étiquette.")
     }
 }

@@ -11,6 +11,7 @@ public enum Phrases {
 
     // MARK: - Accueil et lecture
 
+    public static let voiceMenu = "Dites lire ou écrire."
     public static let welcome = "Appuyez sur Lire ou sur Écrire."
     public static let approachTag = "Approchez l'étiquette."
     public static let emptyTag = "Étiquette vide."
@@ -31,25 +32,34 @@ public enum Phrases {
 
     // MARK: - Questions et réponses vocales
 
-    public static let offerAfterRead =
-        "Dites « encore » pour lire une autre étiquette, ou « écrire » pour écrire une étiquette."
-    public static let askName = "Dites le nom du dossier."
-    public static let askNameAgain = "D'accord. Dites le nom du dossier."
-    public static let askShorterName = "Dites un nom plus court."
-    public static let didNotHearName = "Je n'ai rien entendu. Dites le nom du dossier."
-    public static let didNotUnderstandYesNo = "Je n'ai pas compris. Dites oui, non, ou annuler."
+    public static let shortenOrEdit = "Dites « recommencer » pour dicter un texte plus court."
+    public static let dictationInstructions = " Dites « terminer la dictée » quand vous avez fini."
+    public static let resumeDictation = "Continuez."
+    public static let askName = "Dites le nom du dossier." + dictationInstructions
+    public static let askNameAgain = "D'accord. Dites le nom du dossier." + dictationInstructions
+    /// Premier silence : l'écoute reprend aussitôt.
+    public static let didNotHearNameRetry = "Je n’ai rien entendu. Dites le nom du dossier."
+    /// Plus d'écoute : la reprise passe par le bouton Voix.
+    public static let didNotHearName = "Je n’ai rien entendu. Appuyez sur Voix pour réessayer."
+    public static let didNotUnderstandYesNo = "Je n'ai pas compris. Dites oui, ou non."
     public static let didNotUnderstandReplace = "Je n'ai pas compris. Dites oui pour remplacer, ou non pour garder l'étiquette."
-    public static let useScreen = "Je n'ai pas compris. Vous pouvez utiliser l'écran."
-    public static let useScreenButtons = "Je n'ai pas compris. Utilisez les boutons Remplacer ou Annuler à l'écran."
-    public static let voiceUnavailable = "La reconnaissance vocale n'est pas disponible. Vous pouvez utiliser l'écran."
-    public static let offerAnotherWrite = "Dites « oui » pour écrire une autre étiquette."
-    public static let offerRetry = "Dites « encore » pour réessayer."
-    public static let writeCanceled = "Écriture annulée."
-    public static let stopped = "Annulé."
+    public static let useScreen = "Vous pouvez répondre avec les boutons, ou appuyer sur Voix."
+    public static let useScreenButtons = "Je n'ai pas compris. Utilisez les boutons Remplacer ou Garder à l'écran."
+    public static let voiceUnavailable = "La voix est indisponible. Appuyez sur Voix pour réessayer."
+    /// « Annuler » à la voix : seule la voix s'arrête.
+    public static let voiceStopped = "Voix arrêtée."
+    public static let voiceStoppedDraftKept = "Voix arrêtée. Le texte est conservé."
+    public static let writeCanceled = "Écriture abandonnée. Rien n'a été écrit."
+
+    /// Dictée en pause : le texte conservé reste visible, la suite est au choix.
+    public static func dictationPaused(_ text: String) -> String {
+        guard !text.isEmpty else { return "Dictée en pause. Appuyez sur Voix pour dicter." }
+        return "Dictée en pause : \(text). Appuyez sur Voix pour continuer, ou sur Terminer."
+    }
 
     /// Demande du nouveau nom, après la lecture d'une étiquette.
     public static func askNewName(for oldName: String) -> String {
-        "Dites le nouveau nom pour : \(oldName)."
+        "Dites le nouveau nom pour : \(oldName)." + dictationInstructions
     }
 
     /// Confirmation du nom dicté.
@@ -60,13 +70,12 @@ public enum Phrases {
     // MARK: - Écriture
 
     public static let approachTagAgain = "Approchez à nouveau l'étiquette."
-    public static let writeCanceledTagUnchanged = "Écriture annulée. L'étiquette n'a pas été modifiée."
+    public static let writeCanceledTagUnchanged = "Étiquette gardée. Elle n'a pas été modifiée."
     public static let writeCanceledCheckTag = "Écriture interrompue. Relisez l'étiquette pour vérifier son contenu."
 
     /// Le nom ne tiendra pas sur une NTAG 213 : on le dit avant même d'approcher l'étiquette.
     public static func nameTooLong(_ check: CapacityCheck) -> String {
-        "Ce nom est trop long pour une étiquette. "
-            + "Raccourcissez-le d'environ \(check.excessBytes) lettre\(check.excessBytes > 1 ? "s" : "")."
+        "Ce texte est trop long pour cette étiquette."
     }
 
     /// Question posée quand l'étiquette contient déjà autre chose.

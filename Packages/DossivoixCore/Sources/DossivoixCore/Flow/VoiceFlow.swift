@@ -7,10 +7,10 @@ public enum ListenKind: Equatable, Sendable {
     case name
     case answer
 
-    /// Délais d'écoute, en secondes. Pas d'écoute permanente : chaque écoute est courte.
+    /// Délais en secondes : la dictée tolère 30 secondes sans nouvelle transcription.
     public var timing: ListenTiming {
         switch self {
-        case .name: ListenTiming(initialTimeout: 6, silenceTimeout: 1.5, maxDuration: 15)
+        case .name: ListenTiming(initialTimeout: 30, silenceTimeout: 30, maxDuration: 55)
         case .answer: ListenTiming(initialTimeout: 5, silenceTimeout: 1.0, maxDuration: 6)
         }
     }
@@ -23,13 +23,25 @@ public struct ListenTiming: Equatable, Sendable {
     public let silenceTimeout: Double
     /// Durée maximale de l'écoute.
     public let maxDuration: Double
+
+    public init(initialTimeout: Double, silenceTimeout: Double, maxDuration: Double) {
+        self.initialTimeout = initialTimeout
+        self.silenceTimeout = silenceTimeout
+        self.maxDuration = maxDuration
+    }
 }
 
 /// Ce qu'une écoute a donné.
 public enum ListenResult: Equatable, Sendable {
     case text(String)
+    /// Contenu terminé explicitement, sans réinterprétation des mots littéraux.
+    case dictated(String)
     /// Rien d'exploitable n'a été entendu dans le délai.
     case silence
+    /// Session interrompue ou arrivée à sa limite, sans validation du contenu.
+    case paused(String)
+    /// « Annuler la dictée » : arrêter la voix en gardant le texte déjà dicté.
+    case stopped(String)
     /// Micro ou reconnaissance vocale non autorisés ou indisponibles.
     case unavailable
 }
@@ -42,43 +54,50 @@ public enum WriteTarget: Equatable, Sendable {
     case anyTag
     /// Contenu déjà connu : renommage ou 2e passage. Ce n'est pas un identifiant matériel.
     case knownTag(expected: [NDEFRecord], isSecondPass: Bool)
-    /// Le clavier conserve le contenu visé, mais le remplacement reste à confirmer.
-    case replacementPending(expected: [NDEFRecord])
 }
 
-/// États du parcours vocal.
+/// États du parcours. La voix (parole, micro) est indépendante de l'état :
+/// l'arrêter ne change que la dictée en cours, mise en pause avec son texte.
 public enum FlowState: Equatable, Sendable {
     case idle
     /// Session NFC de lecture en cours.
     case reading
-    /// Après une lecture : écoute courte de « encore » ou « écrire ». `lastRead` permet le renommage.
-    case offeringAfterRead(lastRead: [NDEFRecord]?)
+    /// Voix au repos : écoute courte de « lire » ou « écrire ». `lastRead` permet le renommage.
+    case voiceMenu(lastRead: [NDEFRecord]?)
     /// Dictée du nom (`attempt` : numéro de l'essai).
     case askingName(attempt: Int, target: WriteTarget)
-    /// Saisie au clavier, avec conservation de la cible du renommage/remplacement.
-    case enteringName(target: WriteTarget)
-    /// « J'ai compris : … C'est bon ? »
+    /// Voix arrêtée ou session terminée sans commande : brouillon conservé, reprise explicite.
+    case pausedDictation(text: String, target: WriteTarget)
+    /// « J'ai compris : … C'est bon ? ». Rien n'est écrit sans « oui » ou « C'est bon ».
     case confirmingName(name: String, attempt: Int, target: WriteTarget)
     /// Session NFC d'écriture en cours.
     case writing(name: String, target: WriteTarget)
     /// L'étiquette contient déjà autre chose : « Remplacer ? ». Au-delà des essais, plus d'écoute :
     /// seuls les boutons de l'écran restent possibles.
     case confirmingReplace(name: String, seen: [NDEFRecord], attempt: Int)
-    /// Après un échec d'écriture : « encore » pour réessayer.
-    case offeringRetry(name: String, target: WriteTarget)
-    /// Après une écriture réussie : « oui » pour écrire une autre étiquette.
-    case offeringAnotherWrite
+
+    /// Vrai pendant une session NFC : la feuille système d'iOS a la main.
+    public var isUsingTag: Bool {
+        switch self {
+        case .reading, .writing: true
+        default: false
+        }
+    }
 }
 
 /// Événements reçus par la machine : actions de l'utilisatrice et résultats des services.
 public enum FlowEvent: Equatable, Sendable {
     case startReading
     case startWriting
-    /// Nom saisi au clavier (pas de confirmation orale : il est déjà écrit).
-    case typedName(String)
-    case requestTextEntry(prefill: String?)
-    /// Bouton « Annuler » de l'écran.
-    case cancel
+    /// Bouton Voix : répète la question du contexte et écoute.
+    case resumeVoice
+    /// Arrêt de la voix (bouton, interruption, arrière-plan) : rien n'est effacé ni validé.
+    /// `partial` : transcription déjà reçue par l'écoute coupée.
+    case stopVoice(partial: String)
+    /// Bouton Terminer quand le micro n'écoute pas : relit le brouillon avant confirmation.
+    case finishDictation(partial: String)
+    /// Bouton Abandonner : efface le brouillon, aucune étiquette n'est écrite.
+    case abandonWriting
     case readFinished(Result<[NDEFRecord], TagError>)
     case writeFinished(Result<TagWriteOutcome, TagError>)
     case heard(ListenResult)
@@ -97,8 +116,6 @@ public enum FlowEffect: Equatable, Sendable {
     case writeTag(records: [NDEFRecord], expectedCurrent: [NDEFRecord]?, isSecondPass: Bool)
     /// Garder ce contenu pour l'écran Diagnostic.
     case recordDiagnostic([NDEFRecord])
-    /// Ouvrir la saisie au clavier (solution de secours), avec un nom pré-rempli éventuel.
-    case showTextEntry(prefill: String?)
 }
 
 // MARK: - Machine
@@ -110,39 +127,61 @@ public struct FlowMachine: Sendable {
     public static let maxAttempts = 2
 
     public private(set) var state: FlowState = .idle
+    private var draft = ""
+    private var lastRead: [NDEFRecord]?
+    public var dictationDraft: String { draft }
     public let format: SmartVisionFormat
 
     public init(format: SmartVisionFormat = .standard) {
         self.format = format
     }
 
-    /// Retour au repos sans rien dire (app passée en arrière-plan, par exemple).
+    /// Retour au repos sans rien dire (session NFC interrompue, par exemple).
     public mutating func reset() {
         state = .idle
+        draft = ""
+    }
+
+    /// Vrai si ce nom tient sur l'étiquette au format courant.
+    public func fits(_ name: String) -> Bool {
+        CapacityCheck(folderName: name, format: format).fits
     }
 
     public mutating func handle(_ event: FlowEvent) -> [FlowEffect] {
         switch event {
+        case .resumeVoice:
+            return resumeVoice()
+
         case .startReading:
+            // Un autre parcours commence : aucun brouillon caché ne doit survivre au repos.
+            draft = ""
             state = .reading
             return [.readTag]
 
         case .startWriting:
+            lastRead = nil
             return askName(target: .anyTag, intro: Phrases.askName)
 
-        case .typedName(let raw):
-            let name = FolderName.preparedForWriting(raw)
-            guard !name.isEmpty else { return [] }
-            return write(name, target: currentWriteTarget)
+        case .stopVoice(let partial):
+            stopVoice(partial: partial)
+            return []
 
-        case .requestTextEntry(let prefill):
-            state = .enteringName(target: currentWriteTarget)
-            return [.showTextEntry(prefill: prefill)]
+        case .finishDictation(let partial):
+            return finishDictation(partial: partial)
 
-        case .cancel:
-            guard state != .idle else { return [] }
-            state = .idle
-            return [.say(Phrases.stopped, cue: nil)]
+        case .abandonWriting:
+            switch state {
+            case .askingName, .pausedDictation, .confirmingName:
+                draft = ""
+                state = .idle
+                return [.say(Phrases.writeCanceled, cue: nil)]
+            case .confirmingReplace:
+                draft = ""
+                state = .idle
+                return [.say(Phrases.writeCanceledTagUnchanged, cue: nil)]
+            default:
+                return []
+            }
 
         case .readFinished(let result):
             guard state == .reading else { return [] }
@@ -158,8 +197,10 @@ public struct FlowMachine: Sendable {
             }
             switch result {
             case .text(let text): return answered(VoiceAnswerParser.parse(text), micAvailable: true)
+            case .stopped: return answered(.cancel, micAvailable: true)
             case .silence: return answered(nil, micAvailable: true)
             case .unavailable: return answered(nil, micAvailable: false)
+            case .paused, .dictated: return []
             }
 
         case .screenAnswer(let answer):
@@ -167,61 +208,123 @@ public struct FlowMachine: Sendable {
         }
     }
 
+    // MARK: Voix
+
+    /// Arrêter la voix ne détruit rien : la dictée passe en pause avec son texte,
+    /// les questions restent affichées avec leurs boutons, le menu vocal se referme.
+    private mutating func stopVoice(partial: String) {
+        switch state {
+        case .askingName(_, let target):
+            appendToDraft(partial)
+            state = .pausedDictation(text: draft, target: target)
+        case .voiceMenu:
+            state = .idle
+        default:
+            break
+        }
+    }
+
+    private mutating func resumeVoice() -> [FlowEffect] {
+        switch state {
+        case .reading, .writing: return []
+        case .confirmingName(let name, _, let target):
+            state = .confirmingName(name: name, attempt: 1, target: target)
+            return [.say(Phrases.confirmName(name), cue: nil), .listen(.answer)]
+        case .confirmingReplace(let name, let seen, _):
+            state = .confirmingReplace(name: name, seen: seen, attempt: 1)
+            return [.say(Phrases.askReplace(existing: TagDecoder.decode(seen), newName: name), cue: nil), .listen(.answer)]
+        case .pausedDictation(_, let target), .askingName(_, let target):
+            state = .askingName(attempt: 1, target: target)
+            return [.say(draft.isEmpty ? Phrases.askName : Phrases.resumeDictation, cue: nil), .listen(.name)]
+        case .idle, .voiceMenu:
+            state = .voiceMenu(lastRead: lastRead)
+            return [.say(Phrases.voiceMenu, cue: nil), .listen(.answer)]
+        }
+    }
+
+    private mutating func appendToDraft(_ text: String) {
+        draft = [draft, text].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
     // MARK: Lecture
 
     private mutating func readFinished(_ result: Result<[NDEFRecord], TagError>) -> [FlowEffect] {
+        state = .idle
+        lastRead = nil
         switch result {
         case .success(let records):
+            lastRead = records
             let decoded = TagDecoder.decode(records)
-            state = .offeringAfterRead(lastRead: records)
-            return [
-                .recordDiagnostic(records),
-                .say(Phrases.readResult(decoded), cue: decoded.folderName == nil ? .error : .success),
-                .say(Phrases.offerAfterRead, cue: nil),
-                .listen(.answer),
-            ]
-        case .failure(.userCanceled):
-            state = .idle
-            return [.say(Phrases.message(for: .userCanceled, during: .reading), cue: nil)]
-        case .failure(.readingUnavailable):
-            state = .idle
-            return [.say(Phrases.message(for: .readingUnavailable, during: .reading), cue: .error)]
+            return [.recordDiagnostic(records),
+                    .say(Phrases.readResult(decoded), cue: decoded.folderName == nil ? .error : .success)]
         case .failure(let error):
-            state = .offeringAfterRead(lastRead: nil)
-            return [
-                .say(Phrases.message(for: error, during: .reading), cue: .error),
-                .say(Phrases.offerAfterRead, cue: nil),
-                .listen(.answer),
-            ]
+            return [.say(Phrases.message(for: error, during: .reading), cue: error == .userCanceled ? nil : .error)]
         }
     }
 
     // MARK: Dictée du nom
 
     private mutating func askName(target: WriteTarget, intro: String) -> [FlowEffect] {
+        draft = ""
         state = .askingName(attempt: 1, target: target)
         return [.say(intro, cue: nil), .listen(.name)]
+    }
+
+    private mutating func confirm(_ name: String, target: WriteTarget) -> [FlowEffect] {
+        draft = ""
+        state = .confirmingName(name: name, attempt: 1, target: target)
+        return [.say(Phrases.confirmName(name), cue: nil), .listen(.answer)]
+    }
+
+    private mutating func finishDictation(partial: String) -> [FlowEffect] {
+        switch state {
+        case .askingName(_, let target), .pausedDictation(_, let target):
+            appendToDraft(partial)
+            let name = FolderName.preparedForWriting(draft)
+            guard !name.isEmpty else {
+                state = .pausedDictation(text: draft, target: target)
+                return [.say(Phrases.didNotHearName, cue: nil)]
+            }
+            return confirm(name, target: target)
+        default:
+            return []
+        }
     }
 
     private mutating func heardName(_ result: ListenResult, attempt: Int, target: WriteTarget) -> [FlowEffect] {
         switch result {
         case .text(let text) where VoiceAnswerParser.isStandaloneCancel(text):
-            state = .idle
-            return [.say(Phrases.writeCanceled, cue: nil)]
-        case .text(let text) where !FolderName.preparedForWriting(text).isEmpty:
-            let name = FolderName.preparedForWriting(text)
-            state = .confirmingName(name: name, attempt: 1, target: target)
-            return [.say(Phrases.confirmName(name), cue: nil), .listen(.answer)]
+            return heardName(.stopped(""), attempt: attempt, target: target)
+        case .stopped(let text):
+            // « Annuler » arrête seulement la voix : le texte reste, rien n'est validé.
+            appendToDraft(text)
+            state = .pausedDictation(text: draft, target: target)
+            return [.say(Phrases.voiceStoppedDraftKept, cue: nil)]
+        case .paused(let text):
+            appendToDraft(text)
+            guard !draft.isEmpty else {
+                state = .pausedDictation(text: "", target: target)
+                return [.say(Phrases.didNotHearName, cue: nil)]
+            }
+            // Arrêt automatique : relecture, jamais d'écriture sans confirmation.
+            return confirm(FolderName.preparedForWriting(draft), target: target)
+        case .text(let text), .dictated(let text):
+            appendToDraft(text)
+            let name = FolderName.preparedForWriting(draft)
+            guard !name.isEmpty else {
+                return heardName(.silence, attempt: attempt, target: target)
+            }
+            return confirm(name, target: target)
         case .unavailable:
-            state = .enteringName(target: target)
-            return [.say(Phrases.voiceUnavailable, cue: .error), .showTextEntry(prefill: nil)]
-        case .text, .silence:
+            state = .pausedDictation(text: draft, target: target)
+            return [.say(Phrases.voiceUnavailable, cue: .error)]
+        case .silence:
             guard attempt < Self.maxAttempts else {
-                state = .enteringName(target: target)
-                return [.say(Phrases.useScreen, cue: .error), .showTextEntry(prefill: nil)]
+                state = .pausedDictation(text: draft, target: target)
+                return [.say(Phrases.didNotHearName, cue: .error)]
             }
             state = .askingName(attempt: attempt + 1, target: target)
-            return [.say(Phrases.didNotHearName, cue: nil), .listen(.name)]
+            return [.say(Phrases.didNotHearNameRetry, cue: nil), .listen(.name)]
         }
     }
 
@@ -229,7 +332,7 @@ public struct FlowMachine: Sendable {
 
     private mutating func answered(_ answer: VoiceAnswer?, micAvailable: Bool) -> [FlowEffect] {
         switch state {
-        case .offeringAfterRead(let lastRead):
+        case .voiceMenu(let lastRead):
             switch answer {
             case .again:
                 state = .reading
@@ -237,25 +340,30 @@ public struct FlowMachine: Sendable {
             case .write:
                 return rename(lastRead)
             default:
-                // Pas de réponse claire : on ne fait rien de plus.
+                // Pas de réponse claire, ou « annuler » : retour au repos, sans rien dire.
                 state = .idle
                 return []
             }
 
         case .confirmingName(let name, let attempt, let target):
             switch answer {
+            case .again:
+                // « encore » / « continuer » : ajouter un segment après une coupure trop tôt.
+                draft = name
+                state = .askingName(attempt: 1, target: target)
+                return [.say(Phrases.resumeDictation, cue: nil), .listen(.name)]
             case .yes:
                 return write(name, target: target)
             case .no, .restart:
                 return askName(target: target, intro: Phrases.askNameAgain)
             case .cancel:
-                state = .idle
-                return [.say(Phrases.writeCanceled, cue: nil)]
+                // La question et ses boutons restent : seule la voix s'arrête.
+                return [.say(Phrases.voiceStopped, cue: nil)]
             default:
                 guard micAvailable, attempt < Self.maxAttempts else {
-                    state = .enteringName(target: target)
+                    state = .confirmingName(name: name, attempt: Self.maxAttempts + 1, target: target)
                     let message = micAvailable ? Phrases.useScreen : Phrases.voiceUnavailable
-                    return [.say(message, cue: .error), .showTextEntry(prefill: name)]
+                    return [.say(message, cue: .error)]
                 }
                 state = .confirmingName(name: name, attempt: attempt + 1, target: target)
                 return [.say(Phrases.didNotUnderstandYesNo + " " + Phrases.confirmName(name), cue: nil),
@@ -266,15 +374,17 @@ public struct FlowMachine: Sendable {
             switch answer {
             case .yes:
                 return write(name, target: .knownTag(expected: seen, isSecondPass: true))
-            case .no, .cancel:
+            case .no:
                 state = .idle
                 return [.say(Phrases.writeCanceledTagUnchanged, cue: nil)]
+            case .cancel:
+                return [.say(Phrases.voiceStopped, cue: nil)]
             case .restart:
                 return askName(target: .anyTag, intro: Phrases.askNameAgain)
             default:
                 guard attempt <= Self.maxAttempts else { return [] } // Déjà renvoyée vers l'écran.
                 guard micAvailable, attempt < Self.maxAttempts else {
-                    // Plus d'écoute : l'état reste, les boutons Remplacer / Annuler restent affichés.
+                    // Plus d'écoute : l'état reste, les boutons Remplacer / Garder restent affichés.
                     state = .confirmingReplace(name: name, seen: seen, attempt: Self.maxAttempts + 1)
                     return [.say(micAvailable ? Phrases.useScreenButtons : Phrases.voiceUnavailable, cue: .error)]
                 }
@@ -282,25 +392,7 @@ public struct FlowMachine: Sendable {
                 return [.say(Phrases.didNotUnderstandReplace, cue: nil), .listen(.answer)]
             }
 
-        case .offeringAnotherWrite:
-            switch answer {
-            case .yes, .again, .write:
-                return askName(target: .anyTag, intro: Phrases.askName)
-            default:
-                state = .idle
-                return []
-            }
-
-        case .offeringRetry(let name, let target):
-            switch answer {
-            case .yes, .again, .restart:
-                return write(name, target: target)
-            default:
-                state = .idle
-                return []
-            }
-
-        case .idle, .reading, .askingName, .enteringName, .writing:
+        case .idle, .reading, .askingName, .pausedDictation, .writing:
             return []
         }
     }
@@ -322,8 +414,8 @@ public struct FlowMachine: Sendable {
     private mutating func write(_ name: String, target: WriteTarget) -> [FlowEffect] {
         let check = CapacityCheck(folderName: name, format: format)
         guard check.fits else {
-            state = .askingName(attempt: 1, target: target)
-            return [.say(Phrases.nameTooLong(check) + " " + Phrases.askShorterName, cue: .error), .listen(.name)]
+            state = .confirmingName(name: name, attempt: 1, target: target)
+            return [.say(Phrases.nameTooLong(check) + " " + Phrases.shortenOrEdit, cue: .error), .listen(.answer)]
         }
         // Confirmer un nom ne vaut pas consentement à supprimer un contenu inconnu.
         if case .knownTag(let expected, false) = target {
@@ -336,10 +428,6 @@ public struct FlowMachine: Sendable {
         }
         state = .writing(name: name, target: target)
         switch target {
-        case .replacementPending(let expected):
-            state = .confirmingReplace(name: name, seen: expected, attempt: 1)
-            return [.say(Phrases.askReplace(existing: TagDecoder.decode(expected), newName: name), cue: nil),
-                    .listen(.answer)]
         case .anyTag:
             return [.writeTag(records: format.records(forFolderName: name), expectedCurrent: nil, isSecondPass: false)]
         case .knownTag(let expected, let isSecondPass):
@@ -355,13 +443,11 @@ public struct FlowMachine: Sendable {
     ) -> [FlowEffect] {
         switch result {
         case .success(.written):
-            state = .offeringAnotherWrite
-            return [.say(Phrases.written(name), cue: .success), .say(Phrases.offerAnotherWrite, cue: nil),
-                    .listen(.answer)]
+            state = .idle
+            return [.say(Phrases.written(name), cue: .success)]
         case .success(.alreadyUpToDate):
-            state = .offeringAnotherWrite
-            return [.say(Phrases.alreadyWritten(name), cue: .success), .say(Phrases.offerAnotherWrite, cue: nil),
-                    .listen(.answer)]
+            state = .idle
+            return [.say(Phrases.alreadyWritten(name), cue: .success)]
         case .success(.needsReplaceConfirmation(let current)):
             let existing = TagDecoder.decode(current)
             state = .confirmingReplace(name: name, seen: current, attempt: 1)
@@ -374,27 +460,13 @@ public struct FlowMachine: Sendable {
             state = .idle
             return [.say(Phrases.message(for: .readingUnavailable, during: .writing), cue: .error)]
         case .failure(.insufficientCapacity):
-            state = .askingName(attempt: 1, target: target)
+            state = .confirmingName(name: name, attempt: 1, target: target)
             return [.say(Phrases.message(for: .insufficientCapacity(maxMessageLength: 0), during: .writing)
-                         + " " + Phrases.askShorterName, cue: .error),
-                    .listen(.name)]
-        case .failure(let error):
-            state = .offeringRetry(name: name, target: target)
-            return [.say(Phrases.message(for: error, during: .writing), cue: .error), .say(Phrases.offerRetry, cue: nil),
+                         + " " + Phrases.shortenOrEdit, cue: .error),
                     .listen(.answer)]
-        }
-    }
-
-    /// Cible d'écriture en cours (pour un nom saisi au clavier pendant un parcours).
-    private var currentWriteTarget: WriteTarget {
-        switch state {
-        case .askingName(_, let target), .confirmingName(_, _, let target),
-             .enteringName(let target), .offeringRetry(_, let target):
-            return target
-        case .confirmingReplace(_, let seen, _):
-            return .replacementPending(expected: seen)
-        default:
-            return .anyTag
+        case .failure(let error):
+            state = .idle
+            return [.say(Phrases.message(for: error, during: .writing), cue: .error)]
         }
     }
 }

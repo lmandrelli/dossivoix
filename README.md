@@ -13,7 +13,8 @@ Dossivoix est un projet indépendant, sans affiliation à Kapsys.
 
 - Commandes vocales intégrées (synthèse et reconnaissance en français). VoiceOver non pris en charge dans cette version.
 - Lancement par **Siri classique**, sans Apple Intelligence ni raccourci à créer.
-- Grands boutons à fort contraste en secours, saisie au clavier possible.
+- Trois emplacements fixes à fort contraste : deux grands boutons et le bouton Voix
+  (Arrêter coupe seulement la voix, sans rien effacer ni valider).
 - Aucune collecte automatique par le développeur, aucun serveur applicatif, aucune dépendance externe.
   Le service Speech peut traiter l'audio chez Apple si la reconnaissance sur l'iPhone est indisponible.
 - Confidentialité, assistance et contact accessibles depuis **À propos** dans l'app.
@@ -87,10 +88,8 @@ le même contenu ne sont pas distinguées. Présentez à nouveau l'étiquette ch
 Les confirmations doivent être sans ambiguïté : une phrase comme « ne remplace pas »
 ne vaut jamais « oui » et conduit à une nouvelle question.
 
-Après deux réponses incomprises, l'app renvoie vers l'écran (boutons ou clavier).
-Le clavier conserve la cible et le contenu attendu pendant un renommage ou remplacement.
-Si la confirmation de remplacement est encore en attente, saisir un autre nom au clavier
-repose cette question avant toute écriture. Renommer une étiquette contenant des données
+Après deux réponses incomprises, l'app renvoie vers les boutons de l'écran, qui gardent
+la cible et le contenu attendu pendant un renommage ou remplacement. Renommer une étiquette contenant des données
 inconnues demande également cet accord explicite. Après une interruption de session NFC,
 relisez l'étiquette pour vérifier son contenu : une écriture peut avoir commencé avant l'arrêt.
 
@@ -119,18 +118,20 @@ docs/                        Pages GitHub Pages (assistance, confidentialité)
 ```
 
 **Machine à états** (`FlowMachine`) : chaque événement (bouton, résultat NFC, réponse
-entendue) donne un nouvel état et une liste d'*effets* : parler, écouter, lire, écrire,
-ouvrir le clavier. Le `FlowCoordinator` exécute ces effets dans l'ordre. La parole est
+entendue) donne un nouvel état et une liste d'*effets* : parler, écouter, lire, écrire.
+Les trois boutons de l'écran sont aussi calculés par la machine (`ScreenControls`, matrice
+dans [`docs/long-dictation.md`](docs/long-dictation.md)). Le `FlowCoordinator` exécute ces effets dans l'ordre. La parole est
 toujours terminée avant une écoute, et un nouvel événement coupe la parole et l'écoute
 en cours.
 
 ```
-idle ──Lire──▶ reading ──▶ offeringAfterRead ──« encore »──▶ reading
-                                   └──« écrire »──▶ askingName (renommage)
-idle ──Écrire─▶ askingName ──▶ confirmingName ──« oui »──▶ writing
-                                                            ├─▶ offeringAnotherWrite
-                                                            ├─▶ confirmingReplace ──« oui »──▶ writing (2e passage)
-                                                            └─▶ offeringRetry ──« encore »──▶ writing
+idle ──Lire──▶ reading ──▶ idle
+idle ──Voix──▶ voiceMenu ──« lire »──▶ reading
+                  └──« écrire »──▶ askingName (renommage de l'étiquette lue)
+idle ──Écrire─▶ askingName ⇄ pausedDictation (Arrêter / Voix)
+                    └─Terminer─▶ confirmingName ──C'est bon──▶ writing ──▶ idle
+                                                                  └─▶ confirmingReplace ──Remplacer──▶ writing (2e passage)
+Abandonner / Garder ──▶ idle
 ```
 
 Les services (NFC, parole, écoute, sons, session audio) sont derrière des protocoles,
@@ -222,7 +223,9 @@ Ou **⌘U** dans Xcode (schéma *Dossivoix*). Les tests du package couvrent :
 
 La cible **DossivoixTests** ajoute des tests iOS du coordinateur et de la reconnaissance,
 avec services simulés : annulation pendant les autorisations, callbacks tardifs, arrêt pendant
-un signal sonore, résultat NFC tardif et libération de l'audio au passage au clavier.
+un signal sonore, résultat NFC tardif, arrêt de la voix sans perte ni validation, et appuis
+tardifs ignorés. `ScreenControlsTests` explore les états atteignables pour vérifier : issue
+toujours disponible, aucun bouton sans effet, écriture seulement après confirmation.
 
 ```bash
 xcodebuild -project Dossivoix.xcodeproj -scheme Dossivoix \
@@ -275,7 +278,7 @@ Vérifier aussi les tailles d’écran prises en charge et les dispositions de l
 - [ ] La feuille NFC et les demandes micro/reconnaissance ont des explications en français ;
       le micro et la reconnaissance sont demandés à la première écoute.
 - [ ] Refuser micro ou reconnaissance : l'app annonce que la reconnaissance vocale n'est pas
-      disponible et ouvre la saisie au clavier ; la lecture reste possible.
+      disponible ; la lecture reste possible.
 - [ ] « À propos » présente des liens visuellement distincts vers confidentialité, assistance et contact ; « Dépannage » mène à « Diagnostic » sans réglage iOS préalable.
 - [ ] Passer en arrière-plan pendant une demande d'autorisation : aucune écoute ne démarre après l'arrêt.
 
@@ -285,26 +288,29 @@ Vérifier aussi les tailles d’écran prises en charge et les dispositions de l
 - [ ] Étiquette d'un autre format (URL, vCard…) : « format non reconnu », visible dans Diagnostic, partage OK.
 - [ ] Retirer l'étiquette trop vite : message « retirée trop tôt ».
 - [ ] Toucher *Annuler* sur la feuille NFC : « Lecture annulée », pas de son d'erreur.
-- [ ] Attendre 60 s sans étiquette : « Aucune étiquette détectée », puis proposition encore / écrire.
-- [ ] Dire « encore » : nouvelle lecture. Ne rien dire : l'app s'arrête, le nom reste affiché.
-- [ ] Dire « écrire » après une lecture : « Dites le nouveau nom pour : … », renommage sans
+- [ ] Attendre 60 s sans étiquette : « Aucune étiquette détectée », retour au repos sans écoute.
+- [ ] Après une lecture, toucher Voix puis dire « lire » : nouvelle lecture. Ne rien dire : l'app
+      s'arrête, le nom reste affiché.
+- [ ] Toucher Voix puis dire « écrire » après une lecture : « Dites le nouveau nom pour : … », renommage sans
       question de remplacement ; avec un contenu différent, refus « Le contenu de cette étiquette
       ne correspond pas au contenu attendu ».
 
 ### Écriture (sans VoiceOver)
-- [ ] Dictée d'un nom, fin détectée après un court silence ; majuscule initiale appliquée.
-- [ ] Réponses : oui, d'accord, c'est ça / non, recommencer, refaire / annuler, stop.
+- [ ] Dictée d'un nom terminée par « terminer la dictée » ou Terminer ; majuscule initiale appliquée.
+- [ ] Réponses : oui, d'accord, c'est ça / non, recommencer, refaire. « Annuler », « stop » :
+      la voix s'arrête, le texte et la question restent.
 - [ ] Réponse incompréhensible deux fois : renvoi vers l'écran avec le nom pré-rempli.
 - [ ] Nom très long (> 110 caractères) : demande d'un nom plus court, avant d'approcher l'étiquette.
 - [ ] Étiquette vierge : écrite directement, « Étiquette écrite : … », puis relecture correcte.
 - [ ] Étiquette déjà écrite : question « Remplacer ? » ; « non » la laisse intacte ; « oui » puis
       2ᵉ passage avec l'étiquette choisie : remplacée ; avec un **contenu différent** : refus, rien d'écrit.
 - [ ] Dire « ne remplace pas », « je ne confirme pas » ou « pas correct » : aucune écriture autorisée.
-- [ ] Pendant un renommage, obtenir le repli automatique au clavier puis présenter une étiquette vierge
-      différente : refus si son contenu ne correspond pas au contenu initial.
+- [ ] Pendant un renommage, présenter une étiquette vierge différente : refus si son contenu
+      ne correspond pas au contenu initial.
 - [ ] Étiquette verrouillée : « Cette étiquette est verrouillée ».
 - [ ] Vérifier qu'aucune étiquette écrite par l'app n'est verrouillée (TagInfo).
-- [ ] Saisie au clavier : écriture sans confirmation orale.
+- [ ] Arrêter pendant la dictée : texte conservé, Voix reprend, Terminer relit, rien n'est écrit.
+- [ ] Arrêter pendant « C'est bon ? » : la question et ses boutons restent, rien n'est écrit.
 
 ### Audio
 - [ ] Jamais de parole pendant l'écoute ; bip « j'écoute » avant chaque écoute.
@@ -326,8 +332,8 @@ Vérifier aussi les tailles d’écran prises en charge et les dispositions de l
 - [ ] **Inversion intelligente** (Réglages → Accessibilité → Affichage et taille du texte) en thème clair :
       fond noir et texte blanc, sans aucun bloc blanc. En thème foncé + inversion : l'app doit rester en
       blanc sur noir (iOS épargne les apps au style sombre). Non testable dans le simulateur.
-- [ ] Rien ne bouge à l'écran, sauf le panneau « J'écoute » ; avec « Réduire les animations », il apparaît
-      en fondu et ses barres restent immobiles.
+- [ ] Rien ne bouge à l'écran, sauf les ondes de « J'écoute » ; avec « Réduire les animations », elles
+      restent immobiles.
 
 ### Siri
 - [ ] Juste après l'installation, sans ouvrir l'app : « Lis l'étiquette avec Dossivoix ».

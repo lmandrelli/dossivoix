@@ -77,6 +77,8 @@ final class SoundAndHapticFeedback: FeedbackPlaying {
         switch cue {
         case .listening:
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        case .listeningEnded:
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .success:
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         case .error:

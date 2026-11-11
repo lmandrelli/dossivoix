@@ -10,6 +10,7 @@ struct BigActionButton: View {
     /// Libellé lu par VoiceOver (plus explicite que le titre affiché).
     let accessibilityLabel: String
     let accessibilityHint: String
+    var fitsAvailableSpace = false
     let action: () -> Void
 
     @Environment(\.isEnabled) private var isEnabled
@@ -19,24 +20,30 @@ struct BigActionButton: View {
     var body: some View {
         Button(action: action) {
             Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    // L'icône est redondante : laisser toute la largeur au grand texte.
-                    Text(title)
+                if fitsAvailableSpace {
+                    HStack(spacing: 12) {
+                        Image(systemName: systemImage)
+                            .font(.system(size: 32, weight: .heavy))
+                            .accessibilityHidden(true)
+                        Text(title)
+                    }
                 } else {
                     Label(title, systemImage: systemImage)
                 }
             }
             .font(.system(.largeTitle, weight: .heavy))
-            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
-            .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.5)
-            .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
+            .lineLimit(fitsAvailableSpace ? 1 : (dynamicTypeSize.isAccessibilitySize ? nil : 2))
+            .minimumScaleFactor(fitsAvailableSpace ? 0.3 : (dynamicTypeSize.isAccessibilitySize ? 1 : 0.5))
+            .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize && !fitsAvailableSpace)
             .multilineTextAlignment(.center)
             .foregroundStyle(palette.ink)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding()
             .background(palette.paper, in: RoundedRectangle(cornerRadius: 28))
-            .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(palette.ink, lineWidth: 6))
-            .opacity(isEnabled ? 1 : 0.3)
+            // Inactif : contour en tirets en plus de l'opacité, pour ne pas dépendre du contraste seul.
+            .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(
+                palette.ink, style: StrokeStyle(lineWidth: 6, dash: isEnabled ? [] : [14, 10])))
+            .opacity(isEnabled ? 1 : 0.35)
         }
         .buttonStyle(StillButtonStyle())
         .accessibilityLabel(accessibilityLabel)
