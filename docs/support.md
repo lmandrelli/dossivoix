@@ -13,9 +13,18 @@ title: Assistance – Dossivoix
 3. Pour écrire une étiquette : **« Écris une étiquette avec Dossivoix »**, dites le nom
    du dossier, confirmez par « oui », puis approchez l'étiquette.
 
-Autres phrases Siri : « Dossivoix, lis l'étiquette », « Lire un dossier avec Dossivoix »,
-« Ouvre Dossivoix en lecture », « Dossivoix, écris une étiquette »,
-« Nouvelle étiquette avec Dossivoix », « Ouvre Dossivoix en écriture ».
+Autres phrases pour **lire** : « Lis étiquette Dossivoix »,
+« Lis l'étiquette Dossivoix », « Dossivoix, lis l'étiquette »,
+« Lire un dossier avec Dossivoix », « Ouvre Dossivoix en lecture »,
+« Lis mon dossier avec Dossivoix », « Lis cette étiquette avec Dossivoix »,
+« Identifie ce dossier avec Dossivoix », « Lis avec Dossivoix ».
+
+Autres phrases pour **écrire** : « Dossivoix, écris une étiquette »,
+« Nouvelle étiquette avec Dossivoix », « Ouvre Dossivoix en écriture »,
+« Crée une étiquette avec Dossivoix », « Étiquette un dossier avec Dossivoix »,
+« Écris avec Dossivoix ». Cela fait 17 phrases proposées au total : 10 pour lire et 7 pour
+écrire. Aucun raccourci n'est à créer dans l'app Raccourcis. Siri peut aussi comprendre des
+formulations proches, mais la reconnaissance dépend de la voix et des conditions d'écoute.
 
 Réponses comprises pendant les questions : *oui*, *non*, *recommencer*, *annuler*,
 *encore* (lire une autre étiquette), *écrire*.
@@ -48,20 +57,28 @@ mais plus modifiée. Dossivoix ne verrouille jamais une étiquette.
 Une étiquette NTAG 213 contient environ 110 caractères (les lettres accentuées comptent double).
 
 **Siri ne comprend pas « Dossivoix ».**
-Articulez « Dossi-voix ». Vous pouvez aussi ouvrir l'app et utiliser les grands boutons
-« Lire » et « Écrire ».
+Essayez de prononcer « Dossi voix » et une phrase courte comme « Lis avec Dossivoix » ou
+« Écris avec Dossivoix ». Le nom prononcé « Dossi voix » est configuré dans l'app, mais son
+effet sur la reconnaissance par Siri doit être vérifié à la voix sur votre iPhone.
+Lors d'un essai, « Lis etiquette dossivoix » a ouvert Apple Music : les nouvelles variantes
+sans « avec » restent à retester à la voix. Si Siri ouvre une autre app, ouvrez Dossivoix
+directement et utilisez ses grands boutons « Lire » et « Écrire ».
 
-**Les étiquettes de mon SmartVision sont-elles compatibles ?**
-Dossivoix reproduit le format relevé sur une étiquette du Kapsys SmartVision 2.
-Avant de modifier vos dossiers, vérifiez la lecture dans les deux sens avec une étiquette d'essai.
+**Quels contenus d’étiquettes sont pris en charge ?**
+Dossivoix lit les enregistrements NFC NDEF texte (`text/plain` et RTD_TEXT).
+Elle écrit deux enregistrements `text/plain` : le marqueur `TEXT`, puis le texte suivi
+d’un espace. Les contenus audio ne sont pas pris en charge.
 
 **Une étiquette annonce « format non reconnu ».**
-Activez **Réglages → Dossivoix → Mode diagnostic**, puis dans Dossivoix ouvrez l'écran
-« Diagnostic » (en haut à droite), touchez « Partager ce rapport » et
+Dans Dossivoix, ouvrez **À propos → Dépannage → Diagnostic**, touchez
+« Partager ce rapport » et
 joignez-le à votre demande d'aide : il permettra d'étudier ce format.
 Le rapport contient les données de l'étiquette ; utilisez une étiquette d'essai sans information confidentielle.
 
 ## Nous contacter
+
+Pour obtenir de l'aide sans compte GitHub, écrivez à
+[luca.mandrelli@icloud.com](mailto:luca.mandrelli@icloud.com).
 
 [Ouvrir un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues)
 (un compte GitHub gratuit est nécessaire).

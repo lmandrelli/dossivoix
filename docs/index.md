@@ -11,9 +11,11 @@ Elle permet aussi d'écrire de nouvelles étiquettes en dictant simplement le no
 
 - Tout se fait à la voix, et fonctionne avec VoiceOver.
 - Lancement par Siri : « Lis l'étiquette avec Dossivoix », « Écris une étiquette avec Dossivoix ».
-- Prend en charge le format relevé sur des étiquettes du Kapsys SmartVision 2.
+- Lit les étiquettes NFC NDEF texte ; les contenus audio ne sont pas pris en charge.
 - Aucune publicité, aucun compte, aucune collecte automatique par le développeur.
 - Confidentialité, assistance et contact accessibles dans l'app, via « À propos ».
+- Détails techniques d'une étiquette accessibles par « À propos » → « Dépannage » → « Diagnostic » ;
+  aucun rapport n'est envoyé sans votre action.
 
 ## Pages
 

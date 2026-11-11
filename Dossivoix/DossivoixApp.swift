@@ -5,6 +5,7 @@ import SwiftUI
 struct DossivoixApp: App {
     @State private var coordinator = FlowCoordinator.live()
     @State private var launchRouter = LaunchRouter.shared
+    @State private var navigationPath: [MainDestination] = []
     @Environment(\.scenePhase) private var scenePhase
 
     /// Délai avant de démarrer un parcours demandé par Siri : laisse Siri finir de parler
@@ -13,7 +14,7 @@ struct DossivoixApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainView(coordinator: coordinator)
+            MainView(coordinator: coordinator, navigationPath: $navigationPath)
                 // Noir sur blanc en thème clair (blanc sur noir avec l'inversion intelligente),
                 // blanc sur noir en thème foncé. Voir Palette.
                 .adaptivePalette()
@@ -21,6 +22,8 @@ struct DossivoixApp: App {
                     // SwiftUI annule cette tâche si l'app quitte le premier plan
                     // ou si une autre action remplace la demande de Siri.
                     guard scenePhase == .active, launchRouter.pending != nil else { return }
+                    coordinator.stopAll()
+                    navigationPath.removeAll()
                     do {
                         try await Task.sleep(for: Self.siriHandOffDelay)
                     } catch {
@@ -28,6 +31,7 @@ struct DossivoixApp: App {
                     }
                     guard !Task.isCancelled, scenePhase == .active,
                           let action = launchRouter.take() else { return }
+                    navigationPath.removeAll()
                     switch action {
                     case .read: coordinator.startReading()
                     case .write: coordinator.startWriting()

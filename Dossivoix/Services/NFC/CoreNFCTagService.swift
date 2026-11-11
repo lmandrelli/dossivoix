@@ -19,10 +19,13 @@ final class CoreNFCTagService: NSObject {
 
     private var session: NFCNDEFReaderSession?
     private var job: Job?
+    private var isHandlingTag = false
+    private var isRestartPending = false
 
     func cancel() {
-        session?.invalidate()
+        let currentSession = session
         job?.fail(.userCanceled)
+        currentSession?.invalidate()
     }
 
     /// Ouvre une session NFC ; `body` s'exécute sur l'étiquette connectée et renvoie
@@ -31,7 +34,7 @@ final class CoreNFCTagService: NSObject {
     private func runSession<Value>(
         operation: Phrases.Operation,
         alertMessage: String,
-        body: @escaping (NFCNDEFTag) async throws -> (value: Value, sheetMessage: String)
+        body: @escaping (NFCNDEFTag, @escaping () throws -> Void) async throws -> (value: Value, sheetMessage: String)
     ) async -> Result<Value, TagError> {
         guard NFCNDEFReaderSession.readingAvailable else { return .failure(.readingUnavailable) }
         guard session == nil else { return .failure(.systemBusy) }
@@ -44,24 +47,33 @@ final class CoreNFCTagService: NSObject {
                 isFinished = true
                 self?.job = nil
                 self?.session = nil
+                self?.isHandlingTag = false
+                self?.isRestartPending = false
                 continuation.resume(returning: result)
             }
 
             job = Job(
                 operation: operation,
                 handle: { [weak self] tag, session in
+                    let ensureCurrent: () throws -> Void = { [weak self] in
+                        guard !isFinished, session === self?.session else {
+                            throw TagError.userCanceled
+                        }
+                    }
                     do {
-                        guard session === self?.session else { return }
+                        try ensureCurrent()
                         try await session.connect(to: tag)
-                        guard session === self?.session else { return }
-                        let (value, sheetMessage) = try await body(tag)
+                        try ensureCurrent()
+                        let (value, sheetMessage) = try await body(tag, ensureCurrent)
+                        try ensureCurrent()
                         session.alertMessage = sheetMessage
-                        session.invalidate()
                         finish(.success(value))
+                        session.invalidate()
                     } catch {
+                        guard !isFinished, session === self?.session else { return }
                         let tagError = error as? TagError ?? TagError(nfcError: error)
-                        session.invalidate(errorMessage: Phrases.message(for: tagError, during: operation))
                         finish(.failure(tagError))
+                        session.invalidate(errorMessage: Phrases.message(for: tagError, during: operation))
                     }
                 },
                 fail: { error in finish(.failure(error)) }
@@ -88,10 +100,13 @@ final class CoreNFCTagService: NSObject {
 
 extension CoreNFCTagService: TagReading {
     func readTag() async -> Result<[NDEFRecord], TagError> {
-        await runSession(operation: .reading, alertMessage: Phrases.nfcSheetApproach) { tag in
+        await runSession(operation: .reading, alertMessage: Phrases.nfcSheetApproach) { tag, ensureCurrent in
             let (status, _) = try await tag.queryNDEFStatus()
+            try ensureCurrent()
             guard status != .notSupported else { throw TagError.notNDEFCompatible }
-            return (try await Self.readRecords(of: tag), Phrases.nfcSheetReadDone)
+            let records = try await Self.readRecords(of: tag)
+            try ensureCurrent()
+            return (records, Phrases.nfcSheetReadDone)
         }
     }
 }
@@ -105,9 +120,11 @@ extension CoreNFCTagService: TagWriting {
         isSecondPass: Bool
     ) async -> Result<TagWriteOutcome, TagError> {
         let alertMessage = isSecondPass ? Phrases.nfcSheetApproachAgain : Phrases.nfcSheetApproach
-        return await runSession(operation: .writing, alertMessage: alertMessage) { tag in
+        return await runSession(operation: .writing, alertMessage: alertMessage) { tag, ensureCurrent in
             let (status, capacity) = try await tag.queryNDEFStatus()
+            try ensureCurrent()
             let current = status == .notSupported ? [] : try await Self.readRecords(of: tag)
+            try ensureCurrent()
 
             switch WritePlanner.decide(
                 status: TagWriteStatus(status),
@@ -117,9 +134,12 @@ extension CoreNFCTagService: TagWriting {
                 expectedCurrent: expectedCurrent
             ) {
             case .write:
+                try ensureCurrent()
                 try await tag.writeNDEF(NFCNDEFMessage(records: records.map(NFCNDEFPayload.init)))
+                try ensureCurrent()
                 // Relecture pour confirmer que l'écriture a bien pris.
                 let readBack = try await Self.readRecords(of: tag)
+                try ensureCurrent()
                 guard WritePlanner.isVerified(readBack: readBack, desired: records) else {
                     throw TagError.writeFailed
                 }
@@ -146,16 +166,26 @@ extension CoreNFCTagService: NFCNDEFReaderSessionDelegate {
 
     nonisolated func readerSession(_ session: NFCNDEFReaderSession, didDetect tags: [any NFCNDEFTag]) {
         MainActor.assumeIsolated {
+            guard session === self.session, !isHandlingTag else { return }
             guard tags.count == 1, let tag = tags.first else {
                 // Plusieurs étiquettes en même temps : on demande d'en approcher une seule.
+                guard !isRestartPending else { return }
+                isRestartPending = true
                 session.alertMessage = Phrases.nfcSheetSeveralTags
                 Task {
-                    try? await Task.sleep(for: .milliseconds(500))
+                    do {
+                        try await Task.sleep(for: .milliseconds(500))
+                    } catch {
+                        return
+                    }
+                    guard session === self.session, !self.isHandlingTag, !Task.isCancelled else { return }
+                    self.isRestartPending = false
                     session.restartPolling()
                 }
                 return
             }
             guard let job else { return }
+            isHandlingTag = true
             Task { await job.handle(tag, session) }
         }
     }

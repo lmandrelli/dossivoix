@@ -61,6 +61,7 @@ public enum Phrases {
 
     public static let approachTagAgain = "Approchez à nouveau l'étiquette."
     public static let writeCanceledTagUnchanged = "Écriture annulée. L'étiquette n'a pas été modifiée."
+    public static let writeCanceledCheckTag = "Écriture interrompue. Relisez l'étiquette pour vérifier son contenu."
 
     /// Le nom ne tiendra pas sur une NTAG 213 : on le dit avant même d'approcher l'étiquette.
     public static func nameTooLong(_ check: CapacityCheck) -> String {

@@ -111,6 +111,9 @@ final class FlowCoordinator {
 
     /// Tout arrêter sans rien dire (app passée en arrière-plan).
     func stopAll() {
+        if case .writing = state {
+            lastResultMessage = Phrases.writeCanceledCheckTag
+        }
         interruptChain()
         machine.reset()
         state = machine.state

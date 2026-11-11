@@ -66,6 +66,36 @@ final class FlowMachineTests: XCTestCase {
 
     // MARK: - Écriture
 
+    func testRenamingUnknownOrMixedContentRequiresReplacementConsent() {
+        let unknown = NDEFRecord(typeNameFormat: .wellKnown, type: Data("U".utf8),
+                                payload: Data([0x03]) + Data("example.com".utf8))
+        for current in [[unknown], records("Banque") + [unknown]] {
+            machine = FlowMachine()
+            _ = send(.startReading)
+            _ = send(.readFinished(.success(current)))
+            _ = heard("écrire")
+            _ = heard("assurance")
+            let effects = heard("oui")
+            XCTAssertEqual(machine.state, .confirmingReplace(name: "Assurance", seen: current, attempt: 1))
+            XCTAssertEqual(effects, [
+                .say(Phrases.askReplace(existing: TagDecoder.decode(current), newName: "Assurance"), cue: nil),
+                .listen(.answer),
+            ])
+            XCTAssertEqual(heard("oui"), [
+                .writeTag(records: records("Assurance"), expectedCurrent: current, isSecondPass: true),
+            ])
+        }
+    }
+
+    func testCanceledNFCWriteDoesNotPromiseUnchangedContent() {
+        _ = send(.startWriting)
+        _ = heard("banque")
+        _ = heard("oui")
+        XCTAssertEqual(send(.writeFinished(.failure(.userCanceled))),
+                       [.say(Phrases.writeCanceledCheckTag, cue: nil)])
+        XCTAssertEqual(machine.state, .idle)
+    }
+
     func testFullWriteOnEmptyTag() {
         XCTAssertEqual(send(.startWriting), [.say(Phrases.askName, cue: nil), .listen(.name)])
 
@@ -261,6 +291,11 @@ final class FlowMachineTests: XCTestCase {
         reachReplaceQuestion()
         _ = send(.requestTextEntry(prefill: "Banque"))
         XCTAssertEqual(send(.typedName("Impôts")), [
+            .say(Phrases.askReplace(existing: TagDecoder.decode(smartVisionTag), newName: "Impôts"), cue: nil),
+            .listen(.answer),
+        ])
+        XCTAssertEqual(machine.state, .confirmingReplace(name: "Impôts", seen: smartVisionTag, attempt: 1))
+        XCTAssertEqual(send(.screenAnswer(.yes)), [
             .writeTag(records: records("Impôts"), expectedCurrent: smartVisionTag, isSecondPass: true)
         ])
         _ = send(.cancel)

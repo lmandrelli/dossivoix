@@ -7,8 +7,9 @@ import Foundation
 /// 2. TNF Media, type "text/plain", payload = nom du dossier en UTF-8, suivi d'un espace.
 /// Aucun identifiant d'enregistrement.
 ///
-/// Le marqueur et l'espace final restent à confirmer par un test croisé avec le SmartVision :
-/// ils sont donc réglables.
+/// Lecture des étiquettes texte testée dans les deux sens avec le SmartVision 2,
+/// selon le retour du développeur du 11 novembre 2026. Les contenus vocaux sont exclus.
+/// Le marqueur et l’espace final restent réglables pour les essais de format.
 public struct SmartVisionFormat: Equatable, Sendable {
     /// Type MIME des deux enregistrements.
     public static let mimeType = "text/plain"

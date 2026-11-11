@@ -42,6 +42,8 @@ public enum WriteTarget: Equatable, Sendable {
     case anyTag
     /// Contenu déjà connu : renommage ou 2e passage. Ce n'est pas un identifiant matériel.
     case knownTag(expected: [NDEFRecord], isSecondPass: Bool)
+    /// Le clavier conserve le contenu visé, mais le remplacement reste à confirmer.
+    case replacementPending(expected: [NDEFRecord])
 }
 
 /// États du parcours vocal.
@@ -323,8 +325,21 @@ public struct FlowMachine: Sendable {
             state = .askingName(attempt: 1, target: target)
             return [.say(Phrases.nameTooLong(check) + " " + Phrases.askShorterName, cue: .error), .listen(.name)]
         }
+        // Confirmer un nom ne vaut pas consentement à supprimer un contenu inconnu.
+        if case .knownTag(let expected, false) = target {
+            let existing = TagDecoder.decode(expected)
+            if existing.hasUnrecognizedParts || existing.outcome == .unrecognized {
+                state = .confirmingReplace(name: name, seen: expected, attempt: 1)
+                return [.say(Phrases.askReplace(existing: existing, newName: name), cue: nil),
+                        .listen(.answer)]
+            }
+        }
         state = .writing(name: name, target: target)
         switch target {
+        case .replacementPending(let expected):
+            state = .confirmingReplace(name: name, seen: expected, attempt: 1)
+            return [.say(Phrases.askReplace(existing: TagDecoder.decode(expected), newName: name), cue: nil),
+                    .listen(.answer)]
         case .anyTag:
             return [.writeTag(records: format.records(forFolderName: name), expectedCurrent: nil, isSecondPass: false)]
         case .knownTag(let expected, let isSecondPass):
@@ -354,7 +369,7 @@ public struct FlowMachine: Sendable {
                     .listen(.answer)]
         case .failure(.userCanceled):
             state = .idle
-            return [.say(Phrases.writeCanceledTagUnchanged, cue: nil)]
+            return [.say(Phrases.writeCanceledCheckTag, cue: nil)]
         case .failure(.readingUnavailable):
             state = .idle
             return [.say(Phrases.message(for: .readingUnavailable, during: .writing), cue: .error)]
@@ -377,7 +392,7 @@ public struct FlowMachine: Sendable {
              .enteringName(let target), .offeringRetry(_, let target):
             return target
         case .confirmingReplace(_, let seen, _):
-            return .knownTag(expected: seen, isSecondPass: true)
+            return .replacementPending(expected: seen)
         default:
             return .anyTag
         }

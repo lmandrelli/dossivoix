@@ -75,6 +75,26 @@ final class FlowCoordinatorTests: XCTestCase {
     private func drainTasks() async {
         for _ in 0..<10 { await Task.yield() }
     }
+
+    func testInterruptedWriteKeepsWarningDespiteLateSuccess() async {
+        let tags = SuspendedTags()
+        let speech = SpeechSpy()
+        let audio = AudioSpy()
+        let coordinator = FlowCoordinator(tags: tags, speech: speech, speechInput: InputSpy(),
+                                          feedback: SilentFeedback(), audioSession: audio)
+        coordinator.typedName("Banque")
+        await eventually { tags.writeContinuation != nil }
+        coordinator.stopAll()
+        speech.spoken.removeAll()
+        XCTAssertEqual(coordinator.statusMessage, Phrases.writeCanceledCheckTag)
+        tags.writeContinuation?.resume(returning: .success(.written(previous: [])))
+        tags.writeContinuation = nil
+        await drainTasks()
+        XCTAssertEqual(coordinator.statusMessage, Phrases.writeCanceledCheckTag)
+        XCTAssertEqual(coordinator.state, .idle)
+        XCTAssertFalse(audio.isActive)
+        XCTAssertTrue(speech.spoken.isEmpty)
+    }
 }
 
 @MainActor
@@ -116,12 +136,13 @@ private final class SuspendedFeedback: FeedbackPlaying {
 @MainActor
 private final class SuspendedTags: TagReading, TagWriting {
     var continuation: CheckedContinuation<Result<[NDEFRecord], TagError>, Never>?
+    var writeContinuation: CheckedContinuation<Result<TagWriteOutcome, TagError>, Never>?
     var cancels = 0
     func readTag() async -> Result<[NDEFRecord], TagError> {
         await withCheckedContinuation { continuation = $0 }
     }
     func cancel() { cancels += 1 }
     func writeTag(records: [NDEFRecord], expectedCurrent: [NDEFRecord]?, isSecondPass: Bool) async -> Result<TagWriteOutcome, TagError> {
-        .failure(.readingUnavailable)
+        await withCheckedContinuation { writeContinuation = $0 }
     }
 }

@@ -8,7 +8,7 @@ import Foundation
 enum AppIdentity {
     static let privacyURL = URL(string: "https://lmandrelli.github.io/dossivoix/privacy")!
     static let supportURL = URL(string: "https://lmandrelli.github.io/dossivoix/support")!
-    static let contactURL = URL(string: "https://github.com/lmandrelli/dossivoix/issues")!
+    static let contactURL = URL(string: "mailto:luca.mandrelli@icloud.com")!
     /// Nom prononcé et affiché par l'app.
     static let name: String =
         Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Dossivoix"

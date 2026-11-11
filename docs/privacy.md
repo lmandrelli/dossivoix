@@ -4,7 +4,7 @@ title: Politique de confidentialité – Dossivoix
 
 # Politique de confidentialité de Dossivoix
 
-*Dernière mise à jour : 17 octobre 2026.*
+*Dernière mise à jour : 26 octobre 2026.*
 
 Dossivoix est une application gratuite et open source, publiée par un particulier
 (Luca Mandrelli). **Aucune donnée personnelle n'est collectée automatiquement par le
@@ -44,15 +44,15 @@ de démarrer une lecture ou une écriture.
 
 ## Partage volontaire
 
-L'écran « Diagnostic » (affiché seulement si vous activez Réglages → Dossivoix → Mode diagnostic)
+L'écran « Diagnostic » (accessible par **À propos → Dépannage → Diagnostic**)
 permet de **partager vous-même** le détail technique d'une étiquette
 (par message ou e-mail, par exemple), avec la feuille de partage d'iOS. Rien n'est envoyé
 sans votre action, et le destinataire est celui que vous choisissez.
 Ces rapports peuvent contenir le nom et le contenu complet de vos étiquettes : relisez-les
 avant de les partager. Les copies partagées suivent les règles du service destinataire.
 
-Le seul réglage enregistré par l'application est l'état de l'interrupteur « Mode diagnostic »,
-conservé sur l'iPhone.
+Aucun réglage de diagnostic n'est enregistré. Son historique temporaire reste en mémoire
+jusqu'à la fin du processus de l'application.
 
 ## Autorisations demandées
 
@@ -68,9 +68,9 @@ La session NFC est visible à l'écran et peut être annulée depuis la feuille 
 
 ## Conservation et suppression
 
-Fermer complètement l'application libère les diagnostics gardés en mémoire. Le réglage
-« Mode diagnostic » peut être désactivé dans Réglages → Dossivoix ; désinstaller l'app
-supprime ses données locales. Le développeur ne dispose d'aucun historique serveur à effacer.
+Fermer complètement l'application libère les diagnostics gardés en mémoire. Dossivoix
+n'enregistre pas d'historique local persistant. Désinstaller l'app ne modifie pas les
+étiquettes NFC déjà écrites. Le développeur ne dispose d'aucun historique serveur à effacer.
 Pour un rapport partagé, demandez sa suppression au destinataire concerné. Si vous avez
 publié un ticket GitHub, vous pouvez modifier son contenu ou demander sa suppression au développeur.
 
@@ -101,6 +101,7 @@ the Diagnostic screen until the app process ends; entering the background does n
 Dossivoix does not store an audio recording or tag history on disk. The microphone is used only
 during short listening periods right after a question; speech recognition is performed by iOS,
 on device when available, otherwise audio may be processed by Apple under Apple's privacy
-policy, including Apple's retention rules. Diagnostic reports leave the device only if the user
+policy, including Apple's retention rules. Diagnostic is available through “À propos” →
+“Dépannage” → “Diagnostic” without a saved setting. Reports leave the device only if the user
 shares them via the iOS share sheet; shared copies are subject to the recipient's practices.
 Privacy and support links are available in the app's “À propos” screen.

@@ -38,11 +38,11 @@ public enum WritePlanner {
         if status == .notSupported {
             return .refuse(.notNDEFCompatible)
         }
-        if let expectedCurrent, current != expectedCurrent {
-            return .refuse(.differentTag)
-        }
         if current == desired {
             return .alreadyUpToDate
+        }
+        if let expectedCurrent, current != expectedCurrent {
+            return .refuse(.differentTag)
         }
         if status == .readOnly {
             return .refuse(.readOnly)
@@ -66,11 +66,9 @@ public enum WritePlanner {
         return sameName ? .write : .askReplace(existing: existing)
     }
 
-    /// Vérifie la relecture après écriture : contenu identique, ou à défaut même nom décodé
-    /// (au cas où le système présenterait les enregistrements un peu différemment).
+    /// Vérifie tous les champs NDEF écrits, y compris le marqueur SmartVision.
+    /// Un nom identique ne suffit pas à prouver que le remplacement a réussi.
     public static func isVerified(readBack: [NDEFRecord], desired: [NDEFRecord]) -> Bool {
-        if readBack == desired { return true }
-        let name = TagDecoder.decode(desired).folderName
-        return name != nil && TagDecoder.decode(readBack).folderName == name
+        readBack == desired
     }
 }

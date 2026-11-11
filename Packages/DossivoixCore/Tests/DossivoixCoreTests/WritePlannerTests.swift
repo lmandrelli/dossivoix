@@ -72,6 +72,12 @@ final class WritePlannerTests: XCTestCase {
         XCTAssertEqual(decide(current: [], expected: seen), .refuse(.differentTag))
     }
 
+    func testSecondPassAcceptsAlreadyDesiredContentWithoutWriting() throws {
+        let seen = try NDEFCodec.decode(Fixtures.smartVisionMessage)
+        XCTAssertEqual(decide(current: desired, expected: seen), .alreadyUpToDate)
+        XCTAssertEqual(decide(status: .readOnly, current: desired, expected: seen), .alreadyUpToDate)
+    }
+
     func testSecondPassStillRefusesReadOnly() throws {
         let seen = try NDEFCodec.decode(Fixtures.smartVisionMessage)
         XCTAssertEqual(decide(status: .readOnly, current: seen, expected: seen), .refuse(.readOnly))
@@ -81,7 +87,9 @@ final class WritePlannerTests: XCTestCase {
 
     func testVerification() {
         XCTAssertTrue(WritePlanner.isVerified(readBack: desired, desired: desired))
-        XCTAssertTrue(WritePlanner.isVerified(readBack: [Fixtures.mediaText("Banque")], desired: desired))
+        XCTAssertFalse(WritePlanner.isVerified(readBack: [Fixtures.mediaText("Banque")], desired: desired))
+        let extra = NDEFRecord(typeNameFormat: .wellKnown, type: Data("U".utf8), payload: Data([0x03]))
+        XCTAssertFalse(WritePlanner.isVerified(readBack: desired + [extra], desired: desired))
         XCTAssertFalse(WritePlanner.isVerified(readBack: [], desired: desired))
         XCTAssertFalse(WritePlanner.isVerified(readBack: [Fixtures.mediaText("Banqu")], desired: desired))
     }

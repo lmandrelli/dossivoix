@@ -14,20 +14,29 @@ struct BigActionButton: View {
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.palette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.system(.largeTitle, weight: .heavy))
-                .lineLimit(2)
-                .minimumScaleFactor(0.5)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(palette.ink)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding()
-                .background(palette.paper, in: RoundedRectangle(cornerRadius: 28))
-                .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(palette.ink, lineWidth: 6))
-                .opacity(isEnabled ? 1 : 0.3)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    // L'icône est redondante : laisser toute la largeur au grand texte.
+                    Text(title)
+                } else {
+                    Label(title, systemImage: systemImage)
+                }
+            }
+            .font(.system(.largeTitle, weight: .heavy))
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+            .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.5)
+            .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
+            .multilineTextAlignment(.center)
+            .foregroundStyle(palette.ink)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding()
+            .background(palette.paper, in: RoundedRectangle(cornerRadius: 28))
+            .overlay(RoundedRectangle(cornerRadius: 28).strokeBorder(palette.ink, lineWidth: 6))
+            .opacity(isEnabled ? 1 : 0.3)
         }
         .buttonStyle(StillButtonStyle())
         .accessibilityLabel(accessibilityLabel)

@@ -14,14 +14,18 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Dossivoix transforme votre voix en texte pour comprendre le nom du dossier et vos réponses. La reconnaissance se fait sur l'iPhone quand il le permet ; sinon, l'audio est transmis à Apple pour ce traitement. Dossivoix ne conserve pas d'enregistrement audio.</string>
 
-	<!-- Variantes de prononciation du nom de l'app pour Siri (vide au départ).
-	     Exemple d'entrée à ajouter si Siri comprend mal « Dossivoix » :
-	     <dict>
-	       <key>INAlternativeAppName</key><string>Dossi voix</string>
-	       <key>INAlternativeAppNamePronunciationHint</key><string>dossi voix</string>
-	     </dict> -->
+	<!-- Nom prononcé et variante de la marque pour Siri et VoiceOver. -->
+	<key>CFBundleSpokenName</key>
+	<string>Dossi voix</string>
 	<key>INAlternativeAppNames</key>
-	<array/>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Dossi voix</string>
+			<key>INAlternativeAppNamePronunciationHint</key>
+			<string>dossi voix</string>
+		</dict>
+	</array>
 
 	<!-- Tous les iPhone compatibles iOS 17 ont une puce NFC ; l'app n'a pas de sens sans. -->
 	<key>UIRequiredDeviceCapabilities</key>

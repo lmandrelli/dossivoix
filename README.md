@@ -6,11 +6,13 @@ dossier. Elle écrit aussi de nouvelles étiquettes : on dicte le nom, on confir
 l'étiquette.
 
 Conçue pour une personne malvoyante qui utilisait un téléphone **Kapsys SmartVision 2** :
-les étiquettes existantes restent lisibles, et celles écrites par Dossivoix restent lisibles
-par le SmartVision.
+la lecture des étiquettes **texte** a été testée dans les deux sens avec le SmartVision 2,
+selon le retour du développeur du 11 novembre 2026. Les étiquettes contenant un
+enregistrement vocal Kapsys ne sont pas prises en charge ; cette limitation est attendue.
+Dossivoix est un projet indépendant, sans affiliation à Kapsys.
 
 - Utilisation entièrement vocale (synthèse et reconnaissance en français), compatible VoiceOver.
-- Lancement par **Siri classique**, sans Apple Intelligence ni configuration.
+- Lancement par **Siri classique**, sans Apple Intelligence ni raccourci à créer.
 - Grands boutons à fort contraste en secours, saisie au clavier possible.
 - Aucune collecte automatique par le développeur, aucun serveur applicatif, aucune dépendance externe.
   Le service Speech peut traiter l'audio chez Apple si la reconnaissance sur l'iPhone est indisponible.
@@ -41,12 +43,26 @@ Pages publiques (GitHub Pages, dossier [`docs/`](docs/)) :
 
 | Lecture | Écriture |
 |---|---|
+| « Lis étiquette Dossivoix » | — |
+| « Lis l'étiquette Dossivoix » | — |
 | « Lis l'étiquette avec Dossivoix » | « Écris une étiquette avec Dossivoix » |
 | « Dossivoix, lis l'étiquette » | « Dossivoix, écris une étiquette » |
 | « Lire un dossier avec Dossivoix » | « Nouvelle étiquette avec Dossivoix » |
 | « Ouvre Dossivoix en lecture » | « Ouvre Dossivoix en écriture » |
+| « Lis mon dossier avec Dossivoix » | « Crée une étiquette avec Dossivoix » |
+| « Lis cette étiquette avec Dossivoix » | « Étiquette un dossier avec Dossivoix » |
+| « Identifie ce dossier avec Dossivoix » | « Écris avec Dossivoix » |
+| « Lis avec Dossivoix » | — |
 
-L'app s'ouvre et démarre aussitôt le parcours, sans toucher l'écran.
+Ces **17 phrases** sont définies dans le code (10 pour lire, 7 pour écrire). Les App Shortcuts
+sont exposés au système sans création manuelle dans Raccourcis. L'app s'ouvre et démarre le
+parcours demandé, sous réserve des autorisations initiales et d'un éventuel déverrouillage.
+La correspondance souple des App Shortcuts disponible depuis iOS 17 peut rapprocher des
+formulations naturelles des phrases définies, sans garantir chaque dictée. Le nom prononcé
+`Dossi voix` et la variante `INAlternativeAppNames` sont configurés dans `Config/Info.plist` ;
+leur effet sur la reconnaissance de « Dossivoix » par Siri reste à vérifier à la voix avec
+Bernard. [Apple explique la correspondance souple](https://developer.apple.com/videos/play/wwdc2023/10102/)
+et [les App Shortcuts sans configuration manuelle](https://developer.apple.com/videos/play/wwdc2025/244/).
 
 ### Parcours vocal
 
@@ -72,6 +88,10 @@ ne vaut jamais « oui » et conduit à une nouvelle question.
 
 Après deux réponses incomprises, l'app renvoie vers l'écran (boutons ou clavier).
 Le clavier conserve la cible et le contenu attendu pendant un renommage ou remplacement.
+Si la confirmation de remplacement est encore en attente, saisir un autre nom au clavier
+repose cette question avant toute écriture. Renommer une étiquette contenant des données
+inconnues demande également cet accord explicite. Après une interruption de session NFC,
+relisez l'étiquette pour vérifier son contenu : une écriture peut avoir commencé avant l'arrêt.
 
 ---
 
@@ -93,7 +113,7 @@ Dossivoix/                   App iOS (SwiftUI)
   Flow/                      FlowCoordinator (exécute les effets de la machine), journal de diagnostic
   Intents/                   App Intents, phrases Siri, LaunchRouter
   UI/                        Écran principal, écran Diagnostic
-Config/                      Info.plist (textes d'autorisation, INAlternativeAppNames), entitlements
+Config/                      Info.plist (autorisations, nom prononcé, alias Siri), entitlements
 docs/                        Pages GitHub Pages (assistance, confidentialité)
 ```
 
@@ -132,9 +152,8 @@ Message NDEF de 54 octets, deux *short records* MIME `text/plain`, sans identifi
 - **Lecture** : tolérante. Le marqueur est ignoré, les espaces superflus sont supprimés, et
   les textes « Well-known » (RTD_TEXT, UTF-8 ou UTF-16) sont acceptés. Tout contenu inconnu
   est annoncé comme « Étiquette d'un format non reconnu » et détaillé dans l'écran
-  **Diagnostic** (TNF, type, contenu en hexadécimal et en UTF-8), à partager. Cet écran
-  n'est accessible qu'après avoir activé **Réglages → Dossivoix → Mode diagnostic**
-  (désactivé par défaut).
+  **Diagnostic** (TNF, type, contenu en hexadécimal et en UTF-8), à partager si vous le
+  souhaitez. Cet écran est accessible par **À propos → Dépannage → Diagnostic**.
 - **Capacité** : 141 octets de message sur une NTAG 213, soit 110 octets pour le nom.
   Une lettre accentuée compte pour 2 octets. La capacité réelle de l'étiquette est
   revérifiée au moment d'écrire.
@@ -218,7 +237,7 @@ Choisir un simulateur installé. Ces tests ne remplacent pas les essais NFC, Sir
 | Quoi | Où |
 |---|---|
 | Nom de l'app (affiché, prononcé, utilisé par Siri) | Réglage de build `APP_DISPLAY_NAME` de la cible |
-| Variantes de prononciation pour Siri | `Config/Info.plist` → `INAlternativeAppNames` (vide au départ, exemple en commentaire) |
+| Nom prononcé et variante de nom | `Config/Info.plist` → `CFBundleSpokenName` et `INAlternativeAppNames`, valeurs `Dossi voix` (effet Siri à vérifier sur appareil) |
 | Phrases Siri | `Dossivoix/Intents/DossivoixShortcuts.swift` |
 | Toutes les phrases prononcées | `Packages/DossivoixCore/Sources/DossivoixCore/Speech/Phrases.swift` |
 | Mots compris (oui, non, recommencer…) | `VoiceAnswerParser.vocabulary` |
@@ -227,7 +246,7 @@ Choisir un simulateur installé. Ces tests ne remplacent pas les essais NFC, Sir
 | Nombre d'essais avant renvoi vers l'écran | `FlowMachine.maxAttempts` |
 | Cohabitation avec VoiceOver | `VoiceSettings` (`AdaptiveSpeechOutput.swift`) |
 | Choix de la voix (meilleure voix française installée) | `SynthesizerSpeechOutput.bestVoice()` |
-| Mode diagnostic (Réglages d'iOS) | `Dossivoix/Settings.bundle/Root.plist`, clé `diagnosticModeEnabled` |
+| Dépannage et Diagnostic | `Dossivoix/UI/AboutView.swift` et `Dossivoix/UI/DiagnosticView.swift` |
 | Sons « j'écoute », succès, erreur | `FeedbackCue.notes` |
 
 **Voix plus naturelle** : l'app utilise la meilleure voix française installée (premium, sinon
@@ -248,13 +267,15 @@ la feuille NFC. Si des conflits apparaissent, passer
 Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartVision, une
 étiquette « sacrifiée » verrouillée (avec une app tierce, de façon irréversible, **sur une
 étiquette dédiée uniquement**), des écouteurs Bluetooth, de la musique en lecture.
+Pour les tailles d'écran et l'iPhone Duo, remplir aussi
+[`AppStore/QA-Formats-iPhone.md`](AppStore/QA-Formats-iPhone.md).
 
 ### Premier lancement
 - [ ] La feuille NFC et les demandes micro/reconnaissance ont des explications en français ;
       le micro et la reconnaissance sont demandés à la première écoute.
 - [ ] Refuser micro ou reconnaissance : l'app annonce que la reconnaissance vocale n'est pas
       disponible et ouvre la saisie au clavier ; la lecture reste possible.
-- [ ] « À propos » permet d'ouvrir la confidentialité, l'assistance et le contact sans activer le diagnostic.
+- [ ] « À propos » présente des liens visuellement distincts vers confidentialité, assistance et contact ; « Dépannage » mène à « Diagnostic » sans réglage iOS préalable.
 - [ ] Passer en arrière-plan pendant une demande d'autorisation : aucune écoute ne démarre après l'arrêt.
 
 ### Lecture (sans VoiceOver)
@@ -309,26 +330,34 @@ Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartV
 
 ### Siri
 - [ ] Juste après l'installation, sans ouvrir l'app : « Lis l'étiquette avec Dossivoix ».
-- [ ] iPhone **déverrouillé** : chaque phrase (8) ouvre l'app et démarre le bon parcours sans toucher l'écran.
+- [ ] iPhone **déverrouillé** : tester les 17 phrases définies (10 lecture, 7 écriture) et noter pour chacune la transcription Siri et le parcours ouvert.
+- [ ] Reprendre exactement « Lis etiquette dossivoix », qui a ouvert Apple Music lors d'un essai vocal avec Bernard ; noter si les nouvelles variantes sans « avec » lancent l'app ou si la collision persiste.
+- [ ] Avec Bernard, essayer aussi des formulations naturelles courtes « lis avec Dossivoix », « écris avec Dossivoix », puis « lis avec Dossi voix » et « écris avec Dossi voix ». Noter ce qui est reconnu ; ne pas déduire le succès de la seule configuration de l'alias ou de la correspondance souple.
 - [ ] iPhone **verrouillé** : Siri demande Face ID / code, puis le parcours démarre.
 - [ ] Avec VoiceOver actif, depuis l'écran verrouillé.
 - [ ] « Dis Siri » mains libres et bouton latéral.
 - [ ] Quitter l'app pendant le délai de lancement Siri : le parcours ne démarre pas en arrière-plan.
-- [ ] Si Siri comprend mal « Dossivoix » : noter ce qu'il comprend et l'ajouter dans `INAlternativeAppNames`.
+- [ ] Si Siri comprend mal « Dossivoix » ou « Dossi voix » : noter la transcription et le contexte avant de modifier les noms configurés.
 - [ ] Les raccourcis apparaissent dans l'app Raccourcis et dans la recherche.
 
 ---
 
 ## Test croisé avec le SmartVision
 
-But : vérifier que les étiquettes passent d'un appareil à l'autre dans les deux sens.
+Le développeur confirme le 11 novembre 2026 que la lecture des étiquettes texte fonctionne
+dans les deux sens. Son ami malvoyant a testé de manière approfondie la lecture et
+l’écriture sur son iPhone ; seule une amélioration de la dictée longue a été demandée.
+Le numéro du build et les appareils/versions iOS de ces essais ne sont pas consignés.
+Les étiquettes vocales Kapsys ne sont pas prises en charge.
+
+Le protocole ci-dessous reste disponible pour les tests de non-régression du format.
 
 1. **SmartVision → iPhone** : lire avec Dossivoix 3 étiquettes écrites par le SmartVision,
    dont une avec accents (« Impôts 2024 ») et une longue. Les noms doivent être annoncés correctement.
 2. **iPhone → SmartVision** : écrire avec Dossivoix 3 étiquettes vierges (même noms), puis
    les lire avec le SmartVision.
-3. **Comparer les octets** : activer Réglages → Dossivoix → Mode diagnostic, puis dans Dossivoix,
-   écran **Diagnostic**, partager le rapport d'une
+3. **Comparer les octets** : dans Dossivoix, ouvrir **À propos → Dépannage → Diagnostic**,
+   puis partager le rapport d'une
    étiquette écrite par le SmartVision et celui d'une étiquette écrite par Dossivoix avec le
    même nom. Les lignes « Octets » doivent être identiques. Faire de même avec NXP TagInfo.
 4. **Si le SmartVision ne lit pas** les étiquettes de Dossivoix, essayer dans l'ordre :

@@ -5,9 +5,7 @@
   Aucune collecte par le développeur, aucun suivi publicitaire.
   Le framework Speech peut transmettre l'audio à Apple pour la reconnaissance.
   Le partage d'un diagnostic est déclenché et choisi par l'utilisatrice.
-  API « à justification » utilisées :
-  - UserDefaults (CA92.1) : lecture du réglage « Mode diagnostic » (Settings.bundle),
-    propre à l'app et jamais partagé.
+  Aucun réglage de diagnostic n'est enregistré : accès direct depuis À propos.
 -->
 <plist version="1.0">
 <dict>
@@ -18,15 +16,6 @@
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array/>
 	<key>NSPrivacyAccessedAPITypes</key>
-	<array>
-		<dict>
-			<key>NSPrivacyAccessedAPIType</key>
-			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
-			<key>NSPrivacyAccessedAPITypeReasons</key>
-			<array>
-				<string>CA92.1</string>
-			</array>
-		</dict>
-	</array>
+	<array/>
 </dict>
 </plist>
