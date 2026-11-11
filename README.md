@@ -34,6 +34,7 @@ Pages publiques (GitHub Pages, dossier [`docs/`](docs/)) :
 6. [Réglages faciles à modifier](#réglages-faciles-à-modifier)
 7. [Checklist de tests manuels sur iPhone](#checklist-de-tests-manuels-sur-iphone)
 8. [Test croisé avec le SmartVision](#test-croisé-avec-le-smartvision)
+9. [Publication sur l'App Store](#publication-sur-lapp-store)
 
 ---
 
@@ -267,8 +268,7 @@ la feuille NFC. Si des conflits apparaissent, passer
 Préparer : 2 étiquettes NTAG 213 vierges, 2 étiquettes écrites par le SmartVision, une
 étiquette « sacrifiée » verrouillée (avec une app tierce, de façon irréversible, **sur une
 étiquette dédiée uniquement**), des écouteurs Bluetooth, de la musique en lecture.
-Pour les tailles d'écran et l'iPhone Duo, remplir aussi
-[`AppStore/QA-Formats-iPhone.md`](AppStore/QA-Formats-iPhone.md).
+Vérifier aussi les tailles d’écran prises en charge et les dispositions de l’iPhone Duo.
 
 ### Premier lancement
 - [ ] La feuille NFC et les demandes micro/reconnaissance ont des explications en français ;
