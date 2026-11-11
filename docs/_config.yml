@@ -4,3 +4,7 @@ title: Dossivoix
 description: Étiquettes NFC vocales pour identifier ses dossiers
 lang: fr
 theme: jekyll-theme-primer
+
+# Les notes techniques de développement ne font pas partie du site public.
+exclude:
+  - long-dictation.md

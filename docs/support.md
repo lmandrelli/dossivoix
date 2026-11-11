@@ -1,88 +1,112 @@
 ---
-title: Assistance – Dossivoix
+title: Assistance — Dossivoix
 ---
 
 # Assistance Dossivoix
 
-## Démarrer
+## Lire une étiquette
 
-1. Ouvrez Dossivoix. Le micro et la reconnaissance vocale sont demandés à la première
-   écoute ; vous pouvez les refuser et utiliser le bouton **Clavier**.
-2. Dites à Siri : **« Lis l'étiquette avec Dossivoix »**, puis approchez le haut de
-   l'iPhone de l'étiquette collée sur le dossier. Le nom du dossier est annoncé.
-3. Pour écrire une étiquette : **« Écris une étiquette avec Dossivoix »**, dites le nom
-   du dossier, confirmez par « oui », puis approchez l'étiquette.
+Touchez **Lire**, puis approchez le haut de l'iPhone de l'étiquette NFC.
+Dossivoix annonce le texte à voix haute. Pour lire une autre étiquette,
+touchez de nouveau **Lire**, ou utilisez **Voix** et dites « lire ».
 
-Autres phrases pour **lire** : « Lis étiquette Dossivoix »,
-« Lis l'étiquette Dossivoix », « Dossivoix, lis l'étiquette »,
-« Lire un dossier avec Dossivoix », « Ouvre Dossivoix en lecture »,
-« Lis mon dossier avec Dossivoix », « Lis cette étiquette avec Dossivoix »,
-« Identifie ce dossier avec Dossivoix », « Lis avec Dossivoix ».
+## Écrire une étiquette
 
-Autres phrases pour **écrire** : « Dossivoix, écris une étiquette »,
-« Nouvelle étiquette avec Dossivoix », « Ouvre Dossivoix en écriture »,
-« Crée une étiquette avec Dossivoix », « Étiquette un dossier avec Dossivoix »,
-« Écris avec Dossivoix ». Cela fait 17 phrases proposées au total : 10 pour lire et 7 pour
-écrire. Aucun raccourci n'est à créer dans l'app Raccourcis. Siri peut aussi comprendre des
-formulations proches, mais la reconnaissance dépend de la voix et des conditions d'écoute.
+1. Touchez **Écrire** et autorisez le micro et la reconnaissance vocale si iOS le demande.
+2. Dictez le nom ou le texte du dossier. Vous pouvez faire des pauses.
+3. Dites **« terminer la dictée »** ou touchez **Terminer**.
+4. Dossivoix relit : **« J'ai compris : … C'est bon ? »**. Vérifiez le texte,
+   puis dites **« oui »** ou touchez **C'est bon**. Pour le redire depuis le début,
+   touchez **Recommencer**.
+5. Approchez l'étiquette et maintenez l'iPhone près d'elle jusqu'à la fin de l'écriture.
 
-Réponses comprises pendant les questions : *oui*, *non*, *recommencer*, *annuler*,
-*encore* (lire une autre étiquette), *écrire*.
-Pour confirmer un remplacement, répondez simplement **oui** ou **non**.
-Une phrase négative ou ambiguë ne vaut pas autorisation de remplacement.
+Si l'étiquette contient déjà des données, Dossivoix demande une confirmation supplémentaire.
+Choisissez **Remplacer** pour autoriser le remplacement, ou **Garder** pour conserver
+l'étiquette. Vous pouvez aussi répondre « oui » ou « non » pendant l'écoute.
+Après confirmation, présentez de nouveau la même étiquette, seule : l'app vérifie
+son contenu, mais ne distingue pas deux étiquettes dont le contenu est identique.
 
-Après une confirmation, présentez de nouveau l'étiquette choisie. Dossivoix vérifie
-son contenu, pas son identité physique : deux étiquettes au contenu identique ne sont
-pas distinguées. N'approchez qu'une seule étiquette à la fois.
+## Comprendre les commandes
+
+- **Voix** lance l'écoute adaptée à l'écran : « lire ou écrire » à l'accueil,
+  reprise d'une dictée en pause, ou réponse à la confirmation affichée.
+- **J'écoute** indique que le micro écoute. Un bref son accompagne le début et la fin
+  de l'écoute normale ; son audibilité dépend du volume et de la sortie audio.
+- **Annuler** coupe la parole et le micro, sans écrire ni effacer le texte dicté.
+  Pendant la dictée, « annuler la dictée » permet aussi de mettre en pause.
+- **Terminer** finit la dictée et demande confirmation ; il n'écrit pas directement.
+- **Abandonner** quitte l'écriture et efface le brouillon.
+
+Pendant une opération NFC, les boutons de parcours sont désactivés. La fenêtre NFC
+d'iOS permet d'annuler cette opération. Si une écriture a été interrompue, relisez
+l'étiquette pour vérifier son contenu.
+
+## Si la dictée s'arrête trop tôt
+
+Une écoute de dictée dure au maximum **55 secondes**. Elle se termine aussi après
+**30 secondes sans nouvelle transcription**. Le service de reconnaissance d'Apple
+peut s'arrêter plus tôt. L'arrêt automatique relit le texte et demande confirmation.
+Si vous souhaitez compléter ce texte, dites **« continuer »** pendant la question.
+
+Après un arrêt avec **Annuler**, un appel ou un passage en arrière-plan, touchez
+**Voix** pour reprendre la dictée en pause. Le texte déjà transcrit est conservé
+en mémoire ; les mots que le système n'a pas transcrits ne peuvent pas être récupérés.
+Fermer complètement l'app fait perdre le brouillon. Vérifiez toujours la relecture.
+
+Les expressions « terminer la dictée » et « annuler la dictée », en fin de phrase,
+sont interprétées comme des commandes. Si votre étiquette doit contenir ces mots,
+commencez la dictée par **« texte littéral »**, puis dictez le contenu et utilisez
+le bouton **Terminer**. Les deux mots d'introduction ne sont pas écrits.
+
+## Utiliser Siri
+
+Essayez **« Lis l'étiquette avec Dossivoix »** ou
+**« Écris une étiquette avec Dossivoix »**. Aucun raccourci n'est à créer.
+Si Siri comprend mal le nom, essayez « Dossi voix », ou ouvrez l'app et utilisez
+**Lire**, **Écrire** ou **Voix**.
 
 ## Questions fréquentes
 
-**La voix est robotique.**
-Téléchargez une voix française de meilleure qualité, gratuite : Réglages → Accessibilité →
-Contenu énoncé → Voix → Français, puis choisissez une voix « Améliorée » ou « Premium ».
-Dossivoix l'utilise automatiquement. Avec VoiceOver actif, c'est la voix de VoiceOver qui est utilisée.
+**Puis-je utiliser l'app sans autoriser le micro ?**
+
+Oui pour lire : utilisez **Lire**. L'écriture demande le micro et la reconnaissance
+vocale, car le texte est dicté. Les autorisations se modifient dans les Réglages d'iOS.
 
 **L'étiquette n'est pas détectée.**
-Approchez le *haut* de l'iPhone (près de l'appareil photo), à un ou deux centimètres,
-et gardez-le immobile une seconde. Les coques épaisses ou métalliques gênent la lecture.
 
-**« L'étiquette a été retirée trop tôt ».**
-Laissez l'iPhone contre l'étiquette jusqu'au signal sonore de fin.
+Approchez le haut de l'iPhone, près de l'appareil photo, à un ou deux centimètres,
+et gardez-le immobile. Une coque épaisse ou métallique peut gêner la détection.
 
-**« Cette étiquette est verrouillée ».**
-L'étiquette a été protégée en écriture par un autre appareil : elle peut encore être lue,
-mais plus modifiée. Dossivoix ne verrouille jamais une étiquette.
+**L'étiquette est verrouillée.**
 
-**Le nom est trop long.**
-Une étiquette NTAG 213 contient environ 110 caractères (les lettres accentuées comptent double).
+Elle peut encore être lue, mais plus modifiée. Dossivoix ne verrouille pas les étiquettes.
 
-**Siri ne comprend pas « Dossivoix ».**
-Essayez de prononcer « Dossi voix » et une phrase courte comme « Lis avec Dossivoix » ou
-« Écris avec Dossivoix ». Le nom prononcé « Dossi voix » est configuré dans l'app, mais son
-effet sur la reconnaissance par Siri doit être vérifié à la voix sur votre iPhone.
-Lors d'un essai, « Lis etiquette dossivoix » a ouvert Apple Music : les nouvelles variantes
-sans « avec » restent à retester à la voix. Si Siri ouvre une autre app, ouvrez Dossivoix
-directement et utilisez ses grands boutons « Lire » et « Écrire ».
+**Le texte est trop long.**
 
-**Quels contenus d’étiquettes sont pris en charge ?**
-Dossivoix lit les enregistrements NFC NDEF texte (`text/plain` et RTD_TEXT).
-Elle écrit deux enregistrements `text/plain` : le marqueur `TEXT`, puis le texte suivi
-d’un espace. Les contenus audio ne sont pas pris en charge.
+La place disponible dépend de l'étiquette. Elle se mesure en octets, pas en nombre
+fixe de caractères : les accents et les emojis peuvent occuper davantage de place.
+Dossivoix vérifie la capacité et demande un texte plus court si nécessaire ;
+elle ne tronque pas le texte pour le faire tenir.
 
-**Une étiquette annonce « format non reconnu ».**
-Dans Dossivoix, ouvrez **À propos → Dépannage → Diagnostic**, touchez
-« Partager ce rapport » et
-joignez-le à votre demande d'aide : il permettra d'étudier ce format.
-Le rapport contient les données de l'étiquette ; utilisez une étiquette d'essai sans information confidentielle.
+**Quels contenus sont pris en charge ?**
+
+Les étiquettes NFC NDEF texte (`text/plain` et RTD_TEXT). Les contenus audio
+ne sont pas pris en charge.
+
+**Le format de l'étiquette n'est pas reconnu.**
+
+Ouvrez **À propos → Dépannage → Diagnostic**, puis **Partager ce rapport** pour
+joindre les détails à une demande d'aide. Le rapport contient les données de
+l'étiquette : utilisez une étiquette d'essai sans information confidentielle.
+Rien n'est envoyé sans votre action.
 
 ## Nous contacter
 
-Pour obtenir de l'aide sans compte GitHub, écrivez à
-[luca.mandrelli@icloud.com](mailto:luca.mandrelli@icloud.com).
+Écrivez à [luca.mandrelli@icloud.com](mailto:luca.mandrelli@icloud.com),
+ou [ouvrez un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues).
+Les tickets nécessitent un compte GitHub et sont publics : n'y publiez pas de données
+personnelles ni le contenu confidentiel de vos dossiers.
 
-[Ouvrir un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues)
-(un compte GitHub gratuit est nécessaire).
-Ces liens sont aussi disponibles dans l'app, via **À propos**. Les tickets sont publics :
-ne publiez pas d'informations personnelles ou confidentielles.
+L'aide et la confidentialité sont aussi accessibles dans l'app, via **À propos**.
 
-Voir aussi la [politique de confidentialité](privacy.md).
+[Accueil](index.html) · [Politique de confidentialité](privacy.html)

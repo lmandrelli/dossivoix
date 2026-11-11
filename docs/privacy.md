@@ -4,7 +4,7 @@ title: Politique de confidentialité – Dossivoix
 
 # Politique de confidentialité de Dossivoix
 
-*Dernière mise à jour : 26 octobre 2026.*
+*Dernière mise à jour : 11 novembre 2026.*
 
 Dossivoix est une application gratuite et open source, publiée par un particulier
 (Luca Mandrelli). **Aucune donnée personnelle n'est collectée automatiquement par le
@@ -15,7 +15,7 @@ développeur.** Les traitements par les services Apple et le partage volontaire 
 - Elle ne crée aucun compte et ne demande aucune identité.
 - Elle n'envoie automatiquement aucune donnée au développeur : pas de serveur applicatif,
   pas de statistiques d'utilisation, pas de publicité, pas de suivi (« tracking »).
-- Dossivoix ne conserve pas de fichier audio ni d'historique des étiquettes sur l'iPhone.
+- Dossivoix ne conserve pas de fichier audio ni d'historique persistant des étiquettes sur l'iPhone.
 
 ## Ce qui se passe sur votre iPhone
 
@@ -25,9 +25,10 @@ mémoire, pour l'écran « Diagnostic » (20 lectures au maximum), jusqu'à la f
 de l'application. Le simple passage en arrière-plan ne les efface pas. Dossivoix ne les
 stocke pas dans un fichier ou une base de données sur l'iPhone.
 
-**Micro et reconnaissance vocale.** Le micro n'est ouvert que pendant de courtes écoutes,
-juste après une question de l'application (le nom d'un dossier, ou une réponse comme
-« oui » ou « non »). La reconnaissance vocale est faite par iOS (framework Speech d'Apple) :
+**Micro et reconnaissance vocale.** Le micro est ouvert pendant les écoutes de l'application :
+dictée du texte d'une étiquette, choix d'une action ou réponse à une confirmation.
+L'indicateur **J'écoute** signale cette activité. **Annuler** coupe la voix et le micro.
+Une session de dictée dure au maximum 55 secondes ; iOS peut l'interrompre plus tôt. La reconnaissance vocale est faite par iOS (framework Speech d'Apple) :
 
 - quand l'iPhone le permet, elle se fait **entièrement sur l'appareil** ;
 - sinon, iOS peut transmettre l'audio à Apple pour le transcrire, selon la
@@ -35,6 +36,10 @@ juste après une question de l'application (le nom d'un dossier, ou une réponse
   Dossivoix reçoit le texte reconnu et ne conserve pas d'enregistrement audio.
   Les règles de traitement et de conservation des services Apple relèvent d'Apple ;
   Dossivoix ne garantit pas leur absence de conservation.
+
+**Brouillon dicté.** Le texte déjà reconnu reste en mémoire pendant le parcours d'écriture,
+y compris lorsque vous mettez la dictée en pause. Il n'est pas enregistré dans un fichier.
+Une fermeture complète de l'app fait perdre ce brouillon.
 
 **Synthèse vocale.** Les phrases sont prononcées par la voix française d'iOS, sur l'appareil.
 
@@ -59,11 +64,11 @@ jusqu'à la fin du processus de l'application.
 | Autorisation | Pourquoi |
 |---|---|
 | NFC | Lire et écrire les étiquettes collées sur vos dossiers. |
-| Micro | Entendre le nom d'un dossier ou votre réponse, pendant les courtes questions. |
+| Micro | Entendre le texte dicté, le choix d'une action ou une réponse pendant l'écoute. |
 | Reconnaissance vocale | Transformer votre voix en texte pour comprendre ces réponses. |
 
 Vous pouvez retirer les autorisations **micro et reconnaissance vocale** dans les Réglages
-d'iOS. La lecture NFC et la saisie au clavier restent utilisables sans ces autorisations.
+d'iOS. La lecture NFC reste utilisable sans ces autorisations ; l'écriture d'un nom demande la dictée.
 La session NFC est visible à l'écran et peut être annulée depuis la feuille système.
 
 ## Conservation et suppression
@@ -86,7 +91,8 @@ l'historique du [dépôt GitHub](https://github.com/lmandrelli/dossivoix).
 
 ## Contact
 
-Pour toute question : [ouvrir un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues).
+Pour toute question, écrivez à [luca.mandrelli@icloud.com](mailto:luca.mandrelli@icloud.com)
+ou [ouvrez un ticket sur GitHub](https://github.com/lmandrelli/dossivoix/issues).
 Un compte GitHub est nécessaire. Les tickets sont publics : n'y publiez pas de données personnelles
 ni de noms de dossiers confidentiels. Cette politique et le contact sont accessibles dans l'app,
 via **À propos**.
@@ -99,9 +105,12 @@ Dossivoix's developer **does not automatically collect personal data**. The app 
 analytics, ads, tracking, or application server. Up to 20 NFC readings are kept in memory for
 the Diagnostic screen until the app process ends; entering the background does not erase them.
 Dossivoix does not store an audio recording or tag history on disk. The microphone is used only
-during short listening periods right after a question; speech recognition is performed by iOS,
+during dictation and voice interactions (a dictation session lasts up to 55 seconds); speech recognition is performed by iOS,
 on device when available, otherwise audio may be processed by Apple under Apple's privacy
 policy, including Apple's retention rules. Diagnostic is available through “À propos” →
 “Dépannage” → “Diagnostic” without a saved setting. Reports leave the device only if the user
 shares them via the iOS share sheet; shared copies are subject to the recipient's practices.
 Privacy and support links are available in the app's “À propos” screen.
+
+
+[Accueil](index.html) · [Assistance](support.html)

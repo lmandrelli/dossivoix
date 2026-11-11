@@ -2,23 +2,40 @@
 title: Dossivoix
 ---
 
-# Dossivoix – Étiquettes NFC vocales
+# Dossivoix — Étiquettes NFC vocales
 
-Dossivoix est une application iPhone gratuite et open source qui aide les personnes
-malvoyantes à identifier leurs dossiers papier. On colle une étiquette NFC sur chaque
-dossier ; en approchant l'iPhone, l'application annonce à voix haute le nom du dossier.
-Elle permet aussi d'écrire de nouvelles étiquettes en dictant simplement le nom.
+Dossivoix est une application iPhone gratuite qui aide les personnes malvoyantes
+à identifier leurs dossiers papier. Collez une étiquette NFC sur un dossier :
+l'application peut y écrire un nom dicté, puis le lire à voix haute.
 
-- Tout se fait à la voix, et fonctionne avec VoiceOver.
-- Lancement par Siri : « Lis l'étiquette avec Dossivoix », « Écris une étiquette avec Dossivoix ».
-- Lit les étiquettes NFC NDEF texte ; les contenus audio ne sont pas pris en charge.
-- Aucune publicité, aucun compte, aucune collecte automatique par le développeur.
-- Confidentialité, assistance et contact accessibles dans l'app, via « À propos ».
-- Détails techniques d'une étiquette accessibles par « À propos » → « Dépannage » → « Diagnostic » ;
-  aucun rapport n'est envoyé sans votre action.
+## Simple à voir
 
-## Pages
+Deux grands boutons, **Lire** et **Écrire**, permettent de démarrer directement.
+Les commandes gardent des emplacements stables, avec un affichage contrasté sur
+fond clair ou sombre. Le texte s'adapte à l'espace disponible.
 
-- [Assistance](support.md)
-- [Politique de confidentialité](privacy.md)
-- [Code source sur GitHub](https://github.com/lmandrelli/dossivoix) (licence MIT)
+## Vos dossiers, à voix haute
+
+Touchez **Lire**, puis approchez le haut de l'iPhone de l'étiquette.
+Dossivoix annonce son contenu. Pour créer une étiquette, touchez **Écrire**,
+dictez votre texte, puis vérifiez la relecture avant de confirmer l'écriture.
+
+## Contrôlable à la voix
+
+Touchez **Voix**, puis dites « lire » ou « écrire ». L'indicateur **J'écoute**
+signale que le micro écoute ; **Je parle** indique une annonce en cours.
+Le bouton **Annuler** coupe la voix sans valider ni effacer votre dictée.
+Vous pouvez aussi demander à Siri de lancer une lecture ou une écriture.
+
+## Vos données
+
+Aucun compte, aucune publicité et aucune collecte automatique par le développeur.
+La reconnaissance vocale utilise les services Apple ; selon l'appareil, un traitement
+par Apple et une connexion Internet peuvent être nécessaires.
+
+Dossivoix utilise des étiquettes NFC au format texte NDEF. Les contenus audio
+ne sont pas pris en charge. Le code source est disponible sous licence MIT.
+
+- [Mode d'emploi et assistance](support.html)
+- [Politique de confidentialité](privacy.html)
+- [Code source sur GitHub](https://github.com/lmandrelli/dossivoix)
