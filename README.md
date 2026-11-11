@@ -11,7 +11,7 @@ selon le retour du développeur du 11 novembre 2026. Les étiquettes contenant u
 enregistrement vocal Kapsys ne sont pas prises en charge ; cette limitation est attendue.
 Dossivoix est un projet indépendant, sans affiliation à Kapsys.
 
-- Utilisation entièrement vocale (synthèse et reconnaissance en français), compatible VoiceOver.
+- Commandes vocales intégrées (synthèse et reconnaissance en français). VoiceOver non pris en charge dans cette version.
 - Lancement par **Siri classique**, sans Apple Intelligence ni raccourci à créer.
 - Grands boutons à fort contraste en secours, saisie au clavier possible.
 - Aucune collecte automatique par le développeur, aucun serveur applicatif, aucune dépendance externe.
@@ -255,11 +255,12 @@ améliorée, sinon la voix par défaut, assez robotique). Sur l'iPhone de l'util
 une fois une voix française **améliorée** ou **premium** : Réglages → Accessibilité → Contenu
 énoncé → Voix → Français. C'est gratuit et fonctionne ensuite hors ligne.
 
-**VoiceOver** : par défaut, l'app parle elle-même avec la voix et le débit de VoiceOver.
-La fin de chaque phrase est alors connue avec certitude, ce qui permet d'enchaîner
-parole puis écoute. La consigne « Approchez l'étiquette » est omise, car VoiceOver lit déjà
-la feuille NFC. Si des conflits apparaissent, passer
-`VoiceSettings.usesVoiceOverAnnouncements` à `true` pour confier les phrases à VoiceOver.
+**VoiceOver — limite connue** : VoiceOver n'est pas pris en charge dans cette version. Ses annonces peuvent entrer en conflit avec la voix et la dictée de Dossivoix, notamment lors de l'affichage de la fenêtre NFC. Le mode vocal intégré de l'app est distinct de VoiceOver.
+
+L'essai physique du 11 novembre 2026 n'a pas permis de valider la cohabitation.
+Le correctif expérimental d'annonces VoiceOver a été retiré après cet essai.
+Les libellés d'accessibilité et les adaptations visuelles restent présents ;
+ils ne constituent pas une garantie de parcours complet avec VoiceOver.
 
 ---
 
@@ -314,7 +315,7 @@ Vérifier aussi les tailles d’écran prises en charge et les dispositions de l
 - [ ] Appel entrant ou passage en arrière-plan pendant un parcours : l'app se tait, puis reste utilisable.
 - [ ] Arrêter pendant le bip de succès : le nom n'est pas prononcé après l'arrêt.
 
-### Avec VoiceOver
+### VoiceOver — non pris en charge, essais pour une évolution future
 - [ ] Les boutons sont annoncés clairement (« Lire une étiquette », « Écrire une étiquette »…).
 - [ ] Pas de double voix : la feuille NFC lue par VoiceOver, puis le résultat par l'app.
 - [ ] La voix de l'app reprend la voix et le débit réglés dans VoiceOver.

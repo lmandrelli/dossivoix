@@ -27,6 +27,8 @@ signale que le micro écoute ; **Je parle** indique une annonce en cours.
 Le bouton **Annuler** coupe la voix sans valider ni effacer votre dictée.
 Vous pouvez aussi demander à Siri de lancer une lecture ou une écriture.
 
+**Limite connue :** VoiceOver n'est pas pris en charge dans cette version. Ses annonces peuvent entrer en conflit avec la voix et la dictée de Dossivoix, notamment lors de l'affichage de la fenêtre NFC. Le mode vocal intégré de l'app est distinct de VoiceOver.
+
 ## Vos données
 
 Aucun compte, aucune publicité et aucune collecte automatique par le développeur.

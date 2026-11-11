@@ -65,6 +65,10 @@ Essayez **« Lis l'étiquette avec Dossivoix »** ou
 Si Siri comprend mal le nom, essayez « Dossi voix », ou ouvrez l'app et utilisez
 **Lire**, **Écrire** ou **Voix**.
 
+## VoiceOver
+
+VoiceOver n'est pas pris en charge dans cette version. Ses annonces peuvent entrer en conflit avec la voix et la dictée de Dossivoix, notamment lors de l'affichage de la fenêtre NFC. Le mode vocal intégré de l'app est distinct de VoiceOver.
+
 ## Questions fréquentes
 
 **Puis-je utiliser l'app sans autoriser le micro ?**
