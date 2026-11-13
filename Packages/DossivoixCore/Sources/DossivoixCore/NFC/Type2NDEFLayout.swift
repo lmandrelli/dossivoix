@@ -76,13 +76,14 @@ public struct Type2NDEFLayout: Sendable {
     public struct PageWrite: Equatable, Sendable {
         public let page: UInt8
         public let bytes: Data
+        public init(page: UInt8, bytes: Data) { self.page = page; self.bytes = bytes }
     }
 
     /// Prépare uniquement un NDEF vide valide. Le texte sera écrit ensuite par CoreNFC.
     /// Le CC, les contrôles TLV, les verrous et les données après la zone utilisée restent inchangés.
-    public func initializationWrites() throws -> [PageWrite] {
+    public func initializationWrites(replacingExisting: Bool = false) throws -> [PageWrite] {
         if message == Data([0xD0, 0, 0]) { return [] }
-        guard message.isEmpty else { throw TagError.notNDEFCompatible }
+        guard message.isEmpty || replacingExisting else { throw TagError.notNDEFCompatible }
         guard !isReadOnly else { throw TagError.readOnly }
         let emptyNDEF: [UInt8] = [3, 3, 0xD0, 0, 0, 0xFE]
         guard messageOffset + emptyNDEF.count <= capacity else {
@@ -90,8 +91,8 @@ public struct Type2NDEFLayout: Sendable {
         }
         let original = Array(memory)
         // Ne pas écraser un autre TLV ni un résidu non nul en étendant le message vide.
-        let extensionBytes = original[endOffset..<messageOffset + emptyNDEF.count]
-        guard extensionBytes.enumerated().allSatisfy({ entry in
+        let extensionBytes = original[min(endOffset, messageOffset + emptyNDEF.count)..<messageOffset + emptyNDEF.count]
+        guard replacingExisting || extensionBytes.enumerated().allSatisfy({ entry in
             let index = endOffset + entry.offset
             return entry.element == 0
                 || entry.element == emptyNDEF[index - messageOffset]

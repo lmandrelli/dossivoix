@@ -260,6 +260,9 @@ final class FlowCoordinator {
                     await self.tags.readTag()
                 }
                 guard current == generation else { return }
+                if case .failure(let error) = result {
+                    diagnostics.addFailure(error, during: .reading, details: (tags as? TagDiagnosticProviding)?.lastDiagnosticReport ?? "")
+                }
                 send(.readFinished(result))
                 return
 
@@ -271,6 +274,9 @@ final class FlowCoordinator {
                                              isSecondPass: isSecondPass)
                 }
                 guard current == generation else { return }
+                if case .failure(let error) = result {
+                    diagnostics.addFailure(error, during: .writing, details: (tags as? TagDiagnosticProviding)?.lastDiagnosticReport ?? "")
+                }
                 send(.writeFinished(result))
                 return
             }

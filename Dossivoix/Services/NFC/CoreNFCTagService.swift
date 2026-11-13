@@ -8,7 +8,9 @@ import DossivoixCore
 ///
 /// IMPORTANT : rien n'appelle jamais `writeLock` : les étiquettes ne sont jamais verrouillées.
 @MainActor
-final class CoreNFCTagService: NSObject {
+final class CoreNFCTagService: NSObject, TagDiagnosticProviding {
+    private let trace = NFCDiagnosticTrace()
+    var lastDiagnosticReport: String { trace.report }
     /// Travail à faire quand une étiquette est détectée, et façon de signaler un échec de session.
     private struct Job {
         let operation: Phrases.Operation
@@ -42,6 +44,8 @@ final class CoreNFCTagService: NSObject {
         guard NFCTagReaderSession.readingAvailable else { return .failure(.readingUnavailable) }
         guard session == nil else { return .failure(.systemBusy) }
 
+        trace.reset()
+        trace.record("Opération : \(operation)")
         return await withCheckedContinuation { continuation in
             // Le résultat n'est rendu qu'une seule fois, quoi qu'il arrive.
             var isFinished = false
@@ -91,6 +95,7 @@ final class CoreNFCTagService: NSObject {
                         session.restartPolling()
                     } catch {
                         guard !isFinished, session === self?.session else { return }
+                        self?.trace.record("Échec : \(error)")
                         let tagError = error as? TagError ?? TagError(nfcError: error)
                         finish(.failure(tagError))
                         session.invalidate(errorMessage: Phrases.message(for: tagError, during: operation))
@@ -127,9 +132,10 @@ extension CoreNFCTagService: TagReading {
             let tag = try physicalTag.ndefTag
             let (status, _) = try await tag.queryNDEFStatus()
             try ensureCurrent()
+            self.trace.record("Statut NDEF CoreNFC : \(status.rawValue)")
             if status == .notSupported {
-                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent)
-                let records = snapshot.layout.message.isEmpty ? [] : try NDEFCodec.decode(snapshot.layout.message)
+                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent, diagnostic: self.trace.record)
+                let records = snapshot.layout.records
                 return (records, Phrases.nfcSheetReadDone)
             }
             let records = try await Self.readRecords(of: tag)
@@ -147,20 +153,29 @@ extension CoreNFCTagService: TagWriting {
         expectedCurrent: [NDEFRecord]?,
         isSecondPass: Bool
     ) async -> Result<TagWriteOutcome, TagError> {
+        var preparedContents: [NDEFRecord]?
         let alertMessage = isSecondPass ? Phrases.nfcSheetApproachAgain : Phrases.nfcSheetApproach
         return await runSession(operation: .writing, alertMessage: alertMessage) { physicalTag, wasPrepared, ensureCurrent, reconnect in
             let tag = try physicalTag.ndefTag
-            var preparedEmptyTag = wasPrepared
             var (status, capacity) = try await tag.queryNDEFStatus()
             try ensureCurrent()
+            self.trace.record("Statut NDEF CoreNFC : \(status.rawValue)")
             if status == .notSupported {
                 guard !wasPrepared else { throw TagError.writeFailed }
                 // Ajout exclusivement pour une puce que le parcours NDEF ne sait pas traiter.
-                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent)
-                guard expectedCurrent == nil || expectedCurrent == [] else { throw TagError.differentTag }
+                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent, diagnostic: self.trace.record)
+                let existing = snapshot.layout.records
+                switch WritePlanner.decide(status: snapshot.layout.isReadOnly ? .readOnly : .readWrite,
+                                           capacity: snapshot.layout.maxMessageLength, current: existing,
+                                           desired: records, expectedCurrent: expectedCurrent) {
+                case .askReplace: return (.needsReplaceConfirmation(current: existing), Phrases.nfcSheetTagInUse)
+                case .alreadyUpToDate: return (.alreadyUpToDate, Phrases.nfcSheetAlreadyUpToDate)
+                case .refuse(let error): throw error
+                case .write: break
+                }
                 try snapshot.layout.checkCapacity(for: records)
-                try await Type2TagPreparation.prepare(physicalTag, snapshot: snapshot, ensureCurrent: ensureCurrent)
-                preparedEmptyTag = true
+                try await Type2TagPreparation.prepare(physicalTag, snapshot: snapshot, replacingExisting: true, ensureCurrent: ensureCurrent)
+                preparedContents = existing
                 try await reconnect()
                 (status, capacity) = try await tag.queryNDEFStatus()
                 try ensureCurrent()
@@ -171,16 +186,17 @@ extension CoreNFCTagService: TagWriting {
                 }
             }
             try ensureCurrent()
-            let current = try await Self.readRecords(of: tag)
+            let nativeCurrent = try await Self.readRecords(of: tag)
             try ensureCurrent()
+            if preparedContents != nil, TagDecoder.decode(nativeCurrent).outcome != .empty { throw TagError.differentTag }
+            let current = preparedContents ?? nativeCurrent
 
             switch WritePlanner.decide(
                 status: TagWriteStatus(status),
                 capacity: capacity,
                 current: current,
                 desired: records,
-                expectedCurrent: preparedEmptyTag && expectedCurrent == [] && TagDecoder.decode(current).outcome == .empty
-                    ? current : expectedCurrent
+                expectedCurrent: expectedCurrent
             ) {
             case .write:
                 try ensureCurrent()

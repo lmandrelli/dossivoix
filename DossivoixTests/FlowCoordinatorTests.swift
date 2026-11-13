@@ -5,6 +5,37 @@ import DossivoixCore
 
 @MainActor
 final class FlowCoordinatorTests: XCTestCase {
+    func testFailedReadIsAddedToDiagnostic() async {
+        let coordinator = FlowCoordinator(tags: FakeTagService(readResult: .failure(.notNDEFCompatible)),
+                                          speech: SpeechSpy(), speechInput: InputSpy(),
+                                          feedback: SilentFeedback(), audioSession: AudioSpy())
+        coordinator.startReading()
+        await eventually { !coordinator.diagnostics.entries.isEmpty }
+        XCTAssertEqual(coordinator.diagnostics.entries.count, 1)
+        XCTAssertTrue(coordinator.diagnostics.fullReport.contains("notNDEFCompatible"))
+        coordinator.stopAll()
+    }
+
+    func testCancelledReadDoesNotCreateAnErrorDiagnostic() async {
+        let coordinator = FlowCoordinator(tags: FakeTagService(readResult: .failure(.userCanceled)),
+                                          speech: SpeechSpy(), speechInput: InputSpy(),
+                                          feedback: SilentFeedback(), audioSession: AudioSpy())
+        coordinator.startReading()
+        await drainTasks()
+        XCTAssertTrue(coordinator.diagnostics.entries.isEmpty)
+        coordinator.stopAll()
+    }
+
+    func testFailureDiagnosticKeepsDetailsAndCapacityLimit() {
+        let log = DiagnosticLog()
+        for index in 0...DiagnosticLog.capacity {
+            log.addFailure(.unreadable, during: .reading, details: "Rapport \(index) : CC E1 10 3E 00")
+        }
+        XCTAssertEqual(log.entries.count, DiagnosticLog.capacity)
+        XCTAssertTrue(log.entries[0].report.contains("Rapport 20 : CC E1 10 3E 00"))
+        XCTAssertTrue(log.entries[0].hasUnrecognizedContent)
+    }
+
     func testManualVoiceStopSoundsOnceAndKeepsDraft() async {
         let input = InputSpy()
         let feedback = SilentFeedback()

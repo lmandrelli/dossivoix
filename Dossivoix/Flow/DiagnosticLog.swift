@@ -45,6 +45,25 @@ final class DiagnosticLog {
         }
     }
 
+    /// Conserver aussi les échecs de lecture/écriture : ils expliquent les refus NFC.
+    func addFailure(_ error: TagError, during operation: Phrases.Operation, details: String) {
+        guard error != .userCanceled else { return }
+        let date = Date.now
+        let summary = Phrases.message(for: error, during: operation)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        let report = """
+            \(AppIdentity.name) \(version) (\(build)) — diagnostic NFC
+            Date : \(date.formatted(date: .numeric, time: .standard))
+            Annonce : \(summary)
+            Erreur : \(error)
+
+            \(details)
+            """
+        entries.insert(DiagnosticEntry(date: date, summary: summary, hasUnrecognizedContent: true, report: report), at: 0)
+        if entries.count > Self.capacity { entries.removeLast(entries.count - Self.capacity) }
+    }
+
     /// Tous les rapports, pour un partage groupé.
     var fullReport: String {
         entries.map(\.report).joined(separator: "\n\n----------\n\n")

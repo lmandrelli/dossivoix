@@ -8,7 +8,7 @@ struct DiagnosticView: View {
     var body: some View {
         List {
             if log.entries.isEmpty {
-                Text("Aucune étiquette lue depuis l'ouverture de l'app.")
+                Text("Aucune lecture ni écriture NFC enregistrée depuis l'ouverture de l'app.")
                     .foregroundStyle(.secondary)
             }
             ForEach(log.entries) { entry in
