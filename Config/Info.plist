@@ -6,16 +6,6 @@
 -->
 <plist version="1.0">
 <dict>
-	<!-- Applications NDEF Type 4 et système NDEF FeliCa, pour NFCTagReaderSession. -->
-	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
-	<array>
-		<string>D2760000850101</string>
-	</array>
-	<key>com.apple.developer.nfc.readersession.felica.systemcodes</key>
-	<array>
-		<string>12FC</string>
-	</array>
-
 	<!-- Autorisations, affichées par iOS à la première utilisation. -->
 	<key>NFCReaderUsageDescription</key>
 	<string>Dossivoix lit et écrit les étiquettes NFC collées sur vos dossiers pour vous en annoncer le nom.</string>
