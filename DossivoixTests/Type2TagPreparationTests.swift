@@ -99,4 +99,52 @@ final class Type2TagPreparationTests: XCTestCase {
         } catch { XCTAssertEqual(error as? TagError, .readOnly) }
         XCTAssertFalse(chip.writePages.contains(3))
     }
+    func testNoNDEFIsDetectedWithoutReadingEntireMemory() async throws {
+        let chip = Chip()
+        chip.memory.replaceSubrange(12..<16, with: chip.cc)
+        chip.memory.replaceSubrange(16..<24, with: [0x92, 0x0A, 4, 0x74, 0x92, 0x0A, 4, 0x74])
+        let snapshot = try await Type2TagPreparation.inspect(send: chip.send, ensureCurrent: {})
+        XCTAssertEqual(snapshot.layout.records, [])
+        XCTAssertEqual(chip.commands.count, 3) // CC + deux pages, pas 124 pages.
+        XCTAssertTrue(chip.writePages.isEmpty)
+    }
+
+    func testClearNDEFLeavesNoActiveRecordsAndPreservesControlAndIdentity() async throws {
+        let chip = Chip()
+        chip.memory.replaceSubrange(12..<16, with: chip.cc)
+        let records = SmartVisionFormat.standard.records(forFolderName: "Texte à effacer")
+        let message = NDEFCodec.encode(records)
+        let prefix = Data([1, 3, 0xA0, 0x0C, 0x34, 3, UInt8(message.count)]) + message + Data([0xFE])
+        chip.memory.replaceSubrange(16..<16 + prefix.count, with: prefix)
+        let original = chip.memory
+        let snapshot = try await Type2TagPreparation.inspect(send: chip.send, ensureCurrent: {})
+        try await Type2TagPreparation.clear(snapshot: snapshot, send: chip.send, ensureCurrent: {})
+        let check = try await Type2TagPreparation.inspect(send: chip.send, ensureCurrent: {})
+        XCTAssertEqual(check.layout.records, [])
+        XCTAssertEqual(chip.memory.prefix(21), original.prefix(21)) // UID, CC, contrôles TLV.
+        XCTAssertEqual(chip.memory.suffix(20), original.suffix(20)) // Verrous et configuration.
+        XCTAssertEqual(chip.writePages, [5])
+        XCTAssertEqual(chip.memory.subdata(in: 21..<24), Data([3, 0, 0xFE]))
+    }
+
+    func testClearCancellationDoesNotWrite() async throws {
+        let chip = Chip()
+        let snapshot = try await Type2TagPreparation.inspect(send: chip.send, ensureCurrent: {})
+        do {
+            try await Type2TagPreparation.clear(snapshot: snapshot, send: chip.send, ensureCurrent: { throw TagError.userCanceled })
+            XCTFail("Annulation attendue")
+        } catch { XCTAssertEqual(error as? TagError, .userCanceled) }
+        XCTAssertTrue(chip.writePages.isEmpty)
+    }
+
+    func testClearReadBackFailureNeverReportsSuccess() async throws {
+        let chip = Chip()
+        let snapshot = try await Type2TagPreparation.inspect(send: chip.send, ensureCurrent: {})
+        chip.ignoreWrites = true
+        do {
+            try await Type2TagPreparation.clear(snapshot: snapshot, send: chip.send, ensureCurrent: {})
+            XCTFail("Échec de vérification attendu")
+        } catch { XCTAssertEqual(error as? TagError, .writeFailed) }
+    }
+
 }

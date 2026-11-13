@@ -220,6 +220,33 @@ extension CoreNFCTagService: TagWriting {
     }
 }
 
+// MARK: - Effacement avancé, après confirmation explicite dans l'interface
+
+extension CoreNFCTagService {
+    func eraseTag() async -> Result<Void, TagError> {
+        await runSession(operation: .writing, alertMessage: "Approchez l’étiquette à vider.") { physicalTag, _, ensureCurrent, _ in
+            let tag = try physicalTag.ndefTag
+            let (status, _) = try await tag.queryNDEFStatus()
+            try ensureCurrent()
+            guard status != .readOnly else { throw TagError.readOnly }
+            if case .miFare(let mifare) = physicalTag,
+               mifare.mifareFamily == .ultralight || mifare.mifareFamily == .unknown {
+                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent, diagnostic: self.trace.record)
+                try await Type2TagPreparation.clear(physicalTag, snapshot: snapshot, ensureCurrent: ensureCurrent)
+            } else {
+                guard status == .readWrite else { throw TagError.notNDEFCompatible }
+                let empty = NDEFRecord(typeNameFormat: .empty, type: Data(), payload: Data())
+                try await tag.writeNDEF(NFCNDEFMessage(records: [NFCNDEFPayload(empty)]))
+                try ensureCurrent()
+                let checked = try await Self.readRecords(of: tag)
+                guard TagDecoder.decode(checked).outcome == .empty else { throw TagError.writeFailed }
+            }
+            try ensureCurrent()
+            return ((), "Étiquette vidée. Elle est prête à être réutilisée.")
+        }
+    }
+}
+
 // MARK: - NFCTagReaderSessionDelegate
 // La session est créée avec la file principale : les rappels arrivent sur le thread principal.
 

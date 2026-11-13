@@ -48,8 +48,9 @@ enum Type2TagPreparation {
         var memory = Data()
         for page in 4..<(4 + Int(cc[2]) * 2) {
             memory.append(try await readPage(send, page: UInt8(page), ensureCurrent: ensureCurrent))
+            if memory.count >= 8, (try? Type2TagContents(capabilityContainer: cc, memory: memory)) != nil { break }
         }
-        diagnostic("Mémoire utilisateur : \(memory.count) octets, \(memory.filter { $0 != 0 }.count) non nuls")
+        diagnostic("Mémoire utilisateur lue : \(memory.count)/\(Int(cc[2]) * 8) octets, \(memory.filter { $0 != 0 }.count) non nuls")
         for offset in stride(from: 0, to: memory.count, by: 16) {
             let bytes = memory.subdata(in: offset..<min(offset + 16, memory.count))
             diagnostic(String(format: "Page %02X : ", 4 + offset / 4) + bytes.map { String(format: "%02X", $0) }.joined(separator: " "))
@@ -79,6 +80,25 @@ enum Type2TagPreparation {
             guard currentCC == Data(repeating: 0, count: 4) else { throw TagError.writeFailed }
             try await writeAndVerify(send, page: 3, bytes: snapshot.preparedCC, ensureCurrent: ensureCurrent)
         }
+    }
+
+    static func clear(_ tag: NFCTag, snapshot: Snapshot, ensureCurrent: () throws -> Void) async throws {
+        guard case .miFare(let mifare) = tag else { throw TagError.notNDEFCompatible }
+        try await clear(snapshot: snapshot, send: { try await mifare.sendMiFareCommand(commandPacket: $0) }, ensureCurrent: ensureCurrent)
+    }
+
+    static func clear(snapshot: Snapshot, send: (Data) async throws -> Data, ensureCurrent: () throws -> Void) async throws {
+        for write in try snapshot.layout.clearingWrites() {
+            try await writeAndVerify(send, page: write.page, bytes: write.bytes, ensureCurrent: ensureCurrent)
+        }
+        if snapshot.originalCC != snapshot.preparedCC {
+            guard try await readPage(send, page: 3, ensureCurrent: ensureCurrent) == Data(repeating: 0, count: 4) else {
+                throw TagError.writeFailed
+            }
+            try await writeAndVerify(send, page: 3, bytes: snapshot.preparedCC, ensureCurrent: ensureCurrent)
+        }
+        let checked = try await inspect(send: send, ensureCurrent: ensureCurrent)
+        guard checked.layout.records.isEmpty else { throw TagError.writeFailed }
     }
 
     private static func readPage(

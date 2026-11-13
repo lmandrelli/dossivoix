@@ -74,6 +74,10 @@ struct AboutView: View {
                     actionLabel("Ouvrir le diagnostic", icon: "doc.text.magnifyingglass", external: false)
                 }
                 .accessibilityHint("Affiche les rapports des étiquettes lues. Rien n'est envoyé automatiquement.")
+                NavigationLink(value: MainDestination.eraseTag) {
+                    actionLabel("Vider une étiquette", icon: "eraser", external: false)
+                }
+                .accessibilityHint("Fonction avancée. Supprime le contenu NDEF après confirmation.")
             }
         }
     }

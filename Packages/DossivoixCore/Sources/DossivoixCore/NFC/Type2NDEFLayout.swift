@@ -18,7 +18,7 @@ public struct Type2NDEFLayout: Sendable {
               cc[2] > 0, cc[3] >> 4 == 0 else { throw TagError.notNDEFCompatible }
         capacity = Int(cc[2]) * 8
         isReadOnly = cc[3] & 0x0F != 0
-        guard memory.count == capacity else { throw TagError.unreadable }
+        guard !memory.isEmpty, memory.count <= capacity, memory.count % 4 == 0 else { throw TagError.unreadable }
         self.memory = memory
         let bytes = Array(memory)
         var cursor = 0
@@ -58,6 +58,13 @@ public struct Type2NDEFLayout: Sendable {
             if found != nil { break }
             cursor += length
         }
+        // Une lecture partielle suffit dès que le TLV ou son terminateur est complet.
+        guard found != nil || terminator != nil || memory.count == capacity else { throw TagError.unreadable }
+        let offset = found?.offset ?? insertion
+        if found?.message.isEmpty != false {
+            let needed = min(capacity, ((offset + 6 + 3) / 4) * 4)
+            guard memory.count >= needed else { throw TagError.unreadable }
+        }
         terminatorOffset = found.map { $0.end < bytes.count && bytes[$0.end] == 0xFE ? $0.end : nil } ?? terminator
         reservedRanges = reserved
         messageOffset = found?.offset ?? insertion
@@ -70,6 +77,27 @@ public struct Type2NDEFLayout: Sendable {
         let overhead = count < 255 ? 3 : 5
         guard count + overhead <= capacity - messageOffset else {
             throw TagError.insufficientCapacity(maxMessageLength: max(0, capacity - messageOffset - overhead))
+        }
+    }
+
+    /// Effacement logique du NDEF : longueur nulle et terminateur, sans toucher
+    /// aux TLV de contrôle ni aux paramètres de la puce.
+    public func clearingWrites() throws -> [PageWrite] {
+        guard !isReadOnly else { throw TagError.readOnly }
+        let end = messageOffset + 3
+        guard end <= memory.count else { throw TagError.unreadable }
+        var updated = Array(memory)
+        updated.replaceSubrange(messageOffset..<end, with: [3, 0, 0xFE])
+        let first = messageOffset / 4
+        let last = (end - 1) / 4
+        let range = (16 + first * 4)..<(16 + (last + 1) * 4)
+        guard !reservedRanges.contains(where: { $0.overlaps(range) }) else { throw TagError.readOnly }
+        let lengthPage = (messageOffset + 1) / 4
+        return ((first...last).filter { $0 != lengthPage } + [lengthPage]).compactMap { page in
+            let range = page * 4..<page * 4 + 4
+            let bytes = Data(updated[range])
+            guard bytes != memory.subdata(in: range) else { return nil }
+            return PageWrite(page: UInt8(page + 4), bytes: bytes)
         }
     }
 

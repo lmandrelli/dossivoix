@@ -13,9 +13,9 @@ public struct Type2TagContents: Sendable {
 
     public init(capabilityContainer cc: Data, memory: Data) throws {
         guard cc.count == 4, cc[0] == 0xE1, cc[1] >> 4 == 1, cc[2] > 0,
-              cc[3] >> 4 == 0, memory.count == Int(cc[2]) * 8 else { throw TagError.unreadable }
+              cc[3] >> 4 == 0, memory.count >= 8, memory.count <= Int(cc[2]) * 8 else { throw TagError.unreadable }
         self.memory = memory
-        capacity = memory.count
+        capacity = Int(cc[2]) * 8
         isReadOnly = cc[3] & 0x0F != 0
         if let parsed = try? Type2NDEFLayout(capabilityContainer: cc, memory: memory) {
             layout = parsed
@@ -23,6 +23,9 @@ public struct Type2TagContents: Sendable {
             records = parsed.message.isEmpty ? [] : (try? NDEFCodec.decode(parsed.message))
                 ?? [NDEFRecord(typeNameFormat: .unknown, type: Data(), payload: parsed.message)]
         } else {
+            if memory.count < capacity, let first = memory.first, [0, 1, 2, 3, 0xFE].contains(first) {
+                throw TagError.unreadable // Il manque des pages pour conclure sur le TLV.
+            }
             layout = nil
             // Pas de message NDEF : ne pas rechercher/reconstituer des anciens textes
             // dans les octets bruts, qui ne sont pas des enregistrements actifs.
@@ -36,6 +39,12 @@ public struct Type2TagContents: Sendable {
         guard count + (count < 255 ? 3 : 5) <= capacity else {
             throw TagError.insufficientCapacity(maxMessageLength: maxMessageLength)
         }
+    }
+
+    public func clearingWrites() throws -> [Type2NDEFLayout.PageWrite] {
+        if let layout { return try layout.clearingWrites() }
+        guard !isReadOnly else { throw TagError.readOnly }
+        return [.init(page: 4, bytes: Data([3, 0, 0xFE, memory[3]]))]
     }
 
     public func initializationWrites(replacingExisting: Bool = false) throws -> [Type2NDEFLayout.PageWrite] {

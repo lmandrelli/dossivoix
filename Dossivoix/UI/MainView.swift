@@ -4,6 +4,7 @@ import DossivoixCore
 enum MainDestination: Hashable {
     case about
     case diagnostic
+    case eraseTag
 }
 
 /// Écran principal : solution de secours si la voix ne suffit pas.
@@ -45,6 +46,7 @@ struct MainView: View {
                     switch destination {
                     case .about: AboutView()
                     case .diagnostic: DiagnosticView(log: coordinator.diagnostics)
+                    case .eraseTag: EraseTagView(log: coordinator.diagnostics)
                     }
                 }
                 .onAppear { coordinator.stopAll() }
