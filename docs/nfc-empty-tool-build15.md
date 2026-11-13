@@ -48,3 +48,15 @@ réussis. Build signé 1.1 (15) installé sur l'iPhone 16 Pro. L'accès visuel a
 simulateur n'était pas disponible via l'outil de contrôle ; l'essai physique du
 bouton et de l'effacement reste à effectuer par l'utilisateur. Aucun effacement
 d'étiquette physique n'a été déclenché automatiquement.
+
+## Simplification — build 1.1 (16)
+
+À la demande de l'utilisateur, l'écran intermédiaire est supprimé. Le paragraphe
+explicatif et le bouton sont intégrés directement sous « Ouvrir le diagnostic »
+dans À propos. Deux appuis suffisent : « Vider une étiquette », puis « Effacer »
+dans l'unique boîte de confirmation. La feuille NFC s'ouvre ensuite.
+
+Aucune synthèse vocale de l'app dans ce parcours. Le résultat reste affiché ;
+un succès joue uniquement le signal sonore/haptique habituel de confirmation.
+L'annulation, l'arrêt en arrière-plan, les rapports de diagnostic et les règles
+NFC sont conservés. Aucun envoi TestFlight.
