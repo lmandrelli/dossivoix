@@ -1,11 +1,10 @@
 @preconcurrency import CoreNFC
 import DossivoixCore
 
-/// Service NFC réel, basé sur `NFCNDEFReaderSession`, pour la lecture et l'écriture.
+/// Service NFC réel, basé sur `NFCTagReaderSession`, pour la lecture et l'écriture.
 ///
-/// On utilise la variante « didDetect tags » (et non « didDetectNDEFs ») : elle permet de
-/// se connecter à l'étiquette, de connaître son état (compatible, verrouillée, capacité),
-/// puis de lire et d'écrire dans la même session.
+/// La détection physique permet d'ajouter les puces vierges. Pour les étiquettes
+/// NDEF, lecture, règles de remplacement et écriture restent celles du build 7.
 ///
 /// IMPORTANT : rien n'appelle jamais `writeLock` : les étiquettes ne sont jamais verrouillées.
 @MainActor
@@ -13,11 +12,15 @@ final class CoreNFCTagService: NSObject {
     /// Travail à faire quand une étiquette est détectée, et façon de signaler un échec de session.
     private struct Job {
         let operation: Phrases.Operation
-        let handle: (NFCNDEFTag, NFCNDEFReaderSession) async -> Void
+        let handle: (NFCTag, NFCTagReaderSession) async -> Void
         let fail: (TagError) -> Void
     }
 
-    private var session: NFCNDEFReaderSession?
+    private enum SessionControl: Error {
+        case rediscoverPreparedTag(Data)
+    }
+
+    private var session: NFCTagReaderSession?
     private var job: Job?
     private var isHandlingTag = false
     private var isRestartPending = false
@@ -34,14 +37,15 @@ final class CoreNFCTagService: NSObject {
     private func runSession<Value>(
         operation: Phrases.Operation,
         alertMessage: String,
-        body: @escaping (NFCNDEFTag, @escaping () throws -> Void) async throws -> (value: Value, sheetMessage: String)
+        body: @escaping (NFCTag, Bool, @escaping () throws -> Void, @escaping () async throws -> Void) async throws -> (value: Value, sheetMessage: String)
     ) async -> Result<Value, TagError> {
-        guard NFCNDEFReaderSession.readingAvailable else { return .failure(.readingUnavailable) }
+        guard NFCTagReaderSession.readingAvailable else { return .failure(.readingUnavailable) }
         guard session == nil else { return .failure(.systemBusy) }
 
         return await withCheckedContinuation { continuation in
             // Le résultat n'est rendu qu'une seule fois, quoi qu'il arrive.
             var isFinished = false
+            var preparedIdentifier: Data?
             let finish: (Result<Value, TagError>) -> Void = { [weak self] result in
                 guard !isFinished else { return }
                 isFinished = true
@@ -62,13 +66,29 @@ final class CoreNFCTagService: NSObject {
                     }
                     do {
                         try ensureCurrent()
+                        if let preparedIdentifier {
+                            guard case .miFare(let mifare) = tag, mifare.identifier == preparedIdentifier else {
+                                throw TagError.differentTag
+                            }
+                        }
                         try await session.connect(to: tag)
                         try ensureCurrent()
-                        let (value, sheetMessage) = try await body(tag, ensureCurrent)
+                        let (value, sheetMessage) = try await body(tag, preparedIdentifier != nil, ensureCurrent, {
+                            try ensureCurrent()
+                            try await session.connect(to: tag)
+                            try ensureCurrent()
+                        })
                         try ensureCurrent()
                         session.alertMessage = sheetMessage
                         finish(.success(value))
                         session.invalidate()
+                    } catch SessionControl.rediscoverPreparedTag(let identifier) {
+                        guard !isFinished, session === self?.session else { return }
+                        // Une seule redétection, dans la même feuille NFC. La puce préparée
+                        // est retenue par son UID pour ne pas écrire sur une autre étiquette.
+                        preparedIdentifier = identifier
+                        self?.isHandlingTag = false
+                        session.restartPolling()
                     } catch {
                         guard !isFinished, session === self?.session else { return }
                         let tagError = error as? TagError ?? TagError(nfcError: error)
@@ -79,7 +99,10 @@ final class CoreNFCTagService: NSObject {
                 fail: { error in finish(.failure(error)) }
             )
 
-            let session = NFCNDEFReaderSession(delegate: self, queue: .main, invalidateAfterFirstRead: false)
+            guard let session = NFCTagReaderSession(pollingOption: [.iso14443, .iso15693, .iso18092], delegate: self, queue: .main) else {
+                finish(.failure(.readingUnavailable))
+                return
+            }
             session.alertMessage = alertMessage
             self.session = session
             session.begin()
@@ -100,10 +123,15 @@ final class CoreNFCTagService: NSObject {
 
 extension CoreNFCTagService: TagReading {
     func readTag() async -> Result<[NDEFRecord], TagError> {
-        await runSession(operation: .reading, alertMessage: Phrases.nfcSheetApproach) { tag, ensureCurrent in
+        await runSession(operation: .reading, alertMessage: Phrases.nfcSheetApproach) { physicalTag, _, ensureCurrent, _ in
+            let tag = try physicalTag.ndefTag
             let (status, _) = try await tag.queryNDEFStatus()
             try ensureCurrent()
-            guard status != .notSupported else { throw TagError.notNDEFCompatible }
+            if status == .notSupported {
+                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent)
+                let records = snapshot.layout.message.isEmpty ? [] : try NDEFCodec.decode(snapshot.layout.message)
+                return (records, Phrases.nfcSheetReadDone)
+            }
             let records = try await Self.readRecords(of: tag)
             try ensureCurrent()
             return (records, Phrases.nfcSheetReadDone)
@@ -120,10 +148,30 @@ extension CoreNFCTagService: TagWriting {
         isSecondPass: Bool
     ) async -> Result<TagWriteOutcome, TagError> {
         let alertMessage = isSecondPass ? Phrases.nfcSheetApproachAgain : Phrases.nfcSheetApproach
-        return await runSession(operation: .writing, alertMessage: alertMessage) { tag, ensureCurrent in
-            let (status, capacity) = try await tag.queryNDEFStatus()
+        return await runSession(operation: .writing, alertMessage: alertMessage) { physicalTag, wasPrepared, ensureCurrent, reconnect in
+            let tag = try physicalTag.ndefTag
+            var preparedEmptyTag = wasPrepared
+            var (status, capacity) = try await tag.queryNDEFStatus()
             try ensureCurrent()
-            let current = status == .notSupported ? [] : try await Self.readRecords(of: tag)
+            if status == .notSupported {
+                guard !wasPrepared else { throw TagError.writeFailed }
+                // Ajout exclusivement pour une puce que le parcours NDEF ne sait pas traiter.
+                let snapshot = try await Type2TagPreparation.inspect(physicalTag, ensureCurrent: ensureCurrent)
+                guard expectedCurrent == nil || expectedCurrent == [] else { throw TagError.differentTag }
+                try snapshot.layout.checkCapacity(for: records)
+                try await Type2TagPreparation.prepare(physicalTag, snapshot: snapshot, ensureCurrent: ensureCurrent)
+                preparedEmptyTag = true
+                try await reconnect()
+                (status, capacity) = try await tag.queryNDEFStatus()
+                try ensureCurrent()
+                // L'initialisation a été vérifiée par relecture ; ne pas annoncer une
+                // incompatibilité si iOS ne rafraîchit pas encore son cache NDEF.
+                if status == .notSupported, case .miFare(let mifare) = physicalTag {
+                    throw SessionControl.rediscoverPreparedTag(mifare.identifier)
+                }
+            }
+            try ensureCurrent()
+            let current = try await Self.readRecords(of: tag)
             try ensureCurrent()
 
             switch WritePlanner.decide(
@@ -131,7 +179,8 @@ extension CoreNFCTagService: TagWriting {
                 capacity: capacity,
                 current: current,
                 desired: records,
-                expectedCurrent: expectedCurrent
+                expectedCurrent: preparedEmptyTag && expectedCurrent == [] && TagDecoder.decode(current).outcome == .empty
+                    ? current : expectedCurrent
             ) {
             case .write:
                 try ensureCurrent()
@@ -155,16 +204,13 @@ extension CoreNFCTagService: TagWriting {
     }
 }
 
-// MARK: - NFCNDEFReaderSessionDelegate
+// MARK: - NFCTagReaderSessionDelegate
 // La session est créée avec la file principale : les rappels arrivent sur le thread principal.
 
-extension CoreNFCTagService: NFCNDEFReaderSessionDelegate {
-    nonisolated func readerSessionDidBecomeActive(_ session: NFCNDEFReaderSession) {}
+extension CoreNFCTagService: NFCTagReaderSessionDelegate {
+    nonisolated func tagReaderSessionDidBecomeActive(_ session: NFCTagReaderSession) {}
 
-    /// Obligatoire, mais non utilisé : `didDetect tags` est appelé à la place.
-    nonisolated func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {}
-
-    nonisolated func readerSession(_ session: NFCNDEFReaderSession, didDetect tags: [any NFCNDEFTag]) {
+    nonisolated func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
         MainActor.assumeIsolated {
             guard session === self.session, !isHandlingTag else { return }
             guard tags.count == 1, let tag = tags.first else {
@@ -190,7 +236,7 @@ extension CoreNFCTagService: NFCNDEFReaderSessionDelegate {
         }
     }
 
-    nonisolated func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: Error) {
+    nonisolated func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: Error) {
         MainActor.assumeIsolated {
             // Appelé aussi après nos propres `invalidate()` : le résultat est alors déjà rendu.
             guard session === self.session else { return }
