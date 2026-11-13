@@ -76,3 +76,18 @@ extension Error {
         (self as? NFCReaderError)?.code == .ndefReaderSessionErrorZeroLengthMessage
     }
 }
+
+// Tous ces protocoles exposent aussi les opérations NDEF.
+extension NFCTag {
+    var ndefTag: any NFCNDEFTag {
+        get throws {
+            switch self {
+            case .miFare(let tag): return tag
+            case .iso7816(let tag): return tag
+            case .iso15693(let tag): return tag
+            case .feliCa(let tag): return tag
+            @unknown default: throw TagError.notNDEFCompatible
+            }
+        }
+    }
+}
